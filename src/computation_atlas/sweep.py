@@ -36,6 +36,7 @@ from .space import (
     sample_layout,
     sample_windows,
 )
+from .tiles import supports_tiles, write_tiles
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PIPELINE_VERSION = "0.1.0"
@@ -341,8 +342,7 @@ def build_products(result: SweepResult, out_dir: str | Path) -> dict[str, object
                     "claim": landmark.claim,
                     "source": landmark.source,
                     "expectations": {
-                        metric: [low, high]
-                        for metric, (low, high) in landmark.expectations.items()
+                        metric: [low, high] for metric, (low, high) in landmark.expectations.items()
                     },
                 }
                 for landmark in LANDMARKS
@@ -472,6 +472,10 @@ def _build_layers(result: SweepResult, out: Path) -> dict[str, object]:
         },
         "header_bytes": HEADER_BYTES,
     }
+    # Tiles are rendered from the layers just written, in the same run: one product,
+    # one palette, one set of bytes, so the map cannot come from a different sweep.
+    if supports_tiles(width):
+        manifest.update(write_tiles(out, manifest))
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest
 
@@ -518,7 +522,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {target}")
     else:
         manifest = build_products(result, out)
-        print(f"wrote {out} ({len(manifest['products'])} products)")
+        products = manifest.get("products") or manifest.get("layers") or []
+        print(f"wrote {out} ({len(products)} products)")
     return 0
 
 

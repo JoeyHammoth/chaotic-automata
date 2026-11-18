@@ -2,11 +2,11 @@
   "schema": 1,
   "kind": "layers",
   "pipeline_version": "0.1.0",
-  "git_sha": "2a647d828edaf2dce8ee66689ec5014db7e1f992",
+  "git_sha": "9a5f1b37ce78aa3e45c5526d946c28f02738205d",
   "profile": "atlas",
   "toolchain": {
     "python": "3.14.7",
-    "sweep_binary": "ca-sweep"
+    "sweep_binary": "ca-sweep.exe"
   },
   "space": {
     "family": "life-like",
@@ -125,5 +125,123 @@
       "undecided": 209965
     }
   },
-  "header_bytes": 24
+  "header_bytes": 24,
+  "palette": {
+    "classes": {
+      "static": [
+        58,
+        74,
+        96
+      ],
+      "periodic": [
+        96,
+        160,
+        190
+      ],
+      "ordered": [
+        126,
+        186,
+        132
+      ],
+      "complex": [
+        240,
+        196,
+        92
+      ],
+      "chaotic": [
+        226,
+        106,
+        84
+      ],
+      "undecided": [
+        40,
+        44,
+        52
+      ]
+    },
+    "ramp": [
+      [
+        0.0,
+        [
+          16,
+          20,
+          30
+        ]
+      ],
+      [
+        0.25,
+        [
+          46,
+          84,
+          122
+        ]
+      ],
+      [
+        0.5,
+        [
+          82,
+          156,
+          138
+        ]
+      ],
+      [
+        0.75,
+        [
+          226,
+          186,
+          84
+        ]
+      ],
+      [
+        1.0,
+        [
+          244,
+          236,
+          200
+        ]
+      ]
+    ],
+    "hatch": {
+      "light": [
+        96,
+        104,
+        118
+      ],
+      "dark": [
+        28,
+        31,
+        37
+      ],
+      "period": 8,
+      "width": 2
+    },
+    "disagreement": {
+      "agree": [
+        60,
+        64,
+        78
+      ],
+      "disagree": [
+        240,
+        44,
+        38
+      ]
+    }
+  },
+  "tiles": {
+    "size": 128,
+    "levels": 3,
+    "path": "tiles",
+    "version": "5576130499c6",
+    "colourings": [
+      "class",
+      "activity",
+      "spatial_entropy",
+      "compression",
+      "damage_rate",
+      "disagreement"
+    ],
+    "count": 126,
+    "bytes": 861641
+  }
 }
