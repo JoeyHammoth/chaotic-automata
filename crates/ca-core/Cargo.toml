@@ -7,4 +7,4 @@ repository.workspace = true
 description = "Rule parsing and bit-packed Life-like stepping for Computation Atlas"
 
 [dependencies]
-sha2 = "0.10"
+sha2 = "0.11"
