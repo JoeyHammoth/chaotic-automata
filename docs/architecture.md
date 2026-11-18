@@ -58,6 +58,19 @@ hash, not a screenshot.
 
 Thumbnails of rollouts are not shipped; they are simulated on demand.
 
+## Long sweeps
+
+The preview profile is minutes; a profile with real budgets and several seeds is hours, longer than a
+laptop stays awake. `python -m computation_atlas.sharded` cuts the chart into horizontal bands, runs
+each band as its own `ca-sweep` process, and marks the band done only after its JSONL has been flushed
+and renamed into place. The marker carries the plan fingerprint (budgets, seeds, salt, layout, band
+size), the row count and the data hash, so restarting re-runs only the bands that fail that check. The
+products are byte-identical whether the sweep ran as one process or two hundred, because a band always
+holds whole rules and aggregation walks the bands in plan order.
+
+The fingerprint covers the plan, not the engine binary: after changing engine code, pass `--restart`
+rather than trusting bands measured by the old build.
+
 ## Runtime tiers
 
 | Tier | Provides | Fallback behaviour |
