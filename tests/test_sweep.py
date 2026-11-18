@@ -210,3 +210,22 @@ def test_undecided_rules_are_labelled_and_counted() -> None:
     _, labels = read_labels(PRODUCT / "classes.bin")
     undecided = sum(1 for code in labels[0::2] if code == CLASS_CODES["undecided"])
     assert undecided == counts["undecided"], "the label file and the manifest disagree"
+
+
+def test_the_map_and_the_sample_measure_the_same_budgets() -> None:
+    """A cell in the atlas has to be comparable with the sample product, not just similar.
+
+    The preview map and the six-seed sample used to disagree about budgets, which made
+    ``damage_died_rate`` a sample-only metric. The full atlas now reuses the sample's numbers, so
+    this pins the two profiles together: drift here would quietly split the atlas's meaning again.
+    """
+    full = sweep.PROFILES["atlas-full"]
+    sample = sweep.PROFILES["sample"]
+    assert (full.warm, full.max_steps, full.period_cap) == (
+        sample.warm,
+        sample.max_steps,
+        sample.period_cap,
+    )
+    assert full.seeds == sample.seeds
+    assert full.budgets() == sample.budgets()
+    assert (full.layout, full.quadrant) == ("chart", 512)
