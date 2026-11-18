@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "pipeline_version": "0.1.0",
-  "git_sha": "56bd4f7a0e05cc2e982bd418e8661c0989807656",
+  "git_sha": "29e21daf7709ec7d3563c16c1370cc5355b6d9fe",
   "profile": "sample",
   "toolchain": {
     "python": "3.14.7",
@@ -59,7 +59,7 @@
           ],
           "damage_died_rate": [
             0.0,
-            0.99
+            0.5
           ]
         }
       },
@@ -75,7 +75,7 @@
           ],
           "damage_died_rate": [
             0.0,
-            0.99
+            0.0
           ]
         }
       },
@@ -104,10 +104,6 @@
           "activity": [
             0.01,
             0.45
-          ],
-          "damage_died_rate": [
-            0.0,
-            0.99
           ]
         }
       }
