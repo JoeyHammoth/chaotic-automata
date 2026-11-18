@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/ca-core", "crates/ca-wasm"]
+members = ["crates/ca-core", "crates/ca-wasm", "crates/ca-diff"]
 resolver = "2"
 
 [workspace.package]

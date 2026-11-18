@@ -44,3 +44,22 @@ queued for autonomous work.
 If a published result or constant is misstated anywhere in the docs or app, open an issue with the
 claim, the primary source, and the correction. Primary sources only: papers, official docs, or the
 authors' own data. A secondary write-up is a lead, not evidence.
+
+## Differential harness
+
+Every engine is checked against an independent reference (ADR 0002). The Python reference stepper lives
+in `src/computation_atlas/reference.py`, the comparison harness in
+`src/computation_atlas/differential.py`, and the tests are marked `differential`.
+
+```bash
+cargo build -p ca-diff --release          # the engine side of the comparison
+pytest -m "not differential"              # Python-only suite, fast, no Rust needed
+CA_DIFF_BIN=target/release/ca-diff pytest -m differential
+
+# A larger local workload than CI runs:
+CA_DIFF_BIN=target/release/ca-diff CA_DIFF_LATTICE=128 CA_DIFF_STEPS=40 pytest -m differential
+```
+
+The harness compares whole grids byte for byte and reports the first divergent cell, covers `B0` and
+all-survive rules as well as Life, and asserts that a deliberately mutated engine fails it. CI runs the
+fast profile in its own job so a Python-only change never waits on a Rust build.

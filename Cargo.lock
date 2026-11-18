@@ -19,6 +19,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ca-diff"
+version = "0.1.0"
+dependencies = [
+ "ca-core",
+]
+
+[[package]]
 name = "ca-wasm"
 version = "0.1.0"
 dependencies = [
