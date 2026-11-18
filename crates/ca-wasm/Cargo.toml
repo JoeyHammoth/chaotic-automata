@@ -1,0 +1,13 @@
+[package]
+name = "ca-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Raw wasm32 exports for the Computation Atlas engine"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ca-core = { path = "../ca-core" }

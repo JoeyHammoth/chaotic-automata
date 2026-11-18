@@ -1,0 +1,10 @@
+[package]
+name = "ca-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Rule parsing and bit-packed Life-like stepping for Computation Atlas"
+
+[dependencies]
+sha2 = "0.10"

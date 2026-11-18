@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Computation Atlas — live rule</title>
+    <meta name="description" content="A cellular automaton running live, addressed entirely by the URL." />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Computation Atlas</h1>
+        <p class="lede">One rule, running live. The view is the URL.</p>
+      </header>
+
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <div class="stage">
+        <canvas
+          id="grid"
+          width="256"
+          height="256"
+          role="img"
+          aria-label="Cellular automaton grid"
+        ></canvas>
+      </div>
+
+      <p id="status" class="status" data-testid="status" aria-live="polite">starting…</p>
+
+      <details class="summary">
+        <summary>Text description of the current view</summary>
+        <p id="description">Waiting for the first generation.</p>
+      </details>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

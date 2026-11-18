@@ -31,3 +31,60 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest
+
+  engine:
+    name: Engine (Rust) tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Test the workspace
+        run: cargo test --workspace
+      - name: Build the wasm module
+        run: cargo build -p ca-wasm --target wasm32-unknown-unknown --release
+      - name: Check the module size stays inside the budget
+        run: |
+          bytes=$(stat -c%s target/wasm32-unknown-unknown/release/ca_wasm.wasm)
+          echo "wasm module: ${bytes} bytes"
+          test "${bytes}" -lt 300000
+
+  site:
+    name: Site typecheck, tests and smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install
+        run: npm ci
+        working-directory: site
+      - name: Build the engine module
+        run: npm run build:wasm
+        working-directory: site
+        env:
+          CI: "true"
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: site
+      - name: Unit tests
+        run: npm test
+        working-directory: site
+      - name: Build the site
+        run: npm run build
+        working-directory: site
+      - name: Install a browser for the smoke test
+        run: npx playwright install --with-deps chromium
+        working-directory: site
+      - name: Smoke test the running page
+        run: npm run e2e
+        working-directory: site
