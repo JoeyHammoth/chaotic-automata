@@ -454,6 +454,9 @@ the seam differs by tier (`wasm-bridge`, `ts-cpu`, `webgpu`); callers never lear
 The **deletion test** applies here: delete `ca-core` and the rule semantics reappear in the pipeline,
 the site, the HashLife tests and the stress lab, four times over. It earns its keep.
 
+The representation behind this interface is settled by measurement: bit-packed rows in Rust compiled to
+`wasm32`, with a plain `u8` stepper as the reference that keeps it honest ([ADR 0004](../docs/adr/0004-engine-stack.md)).
+
 ### 4.7 The site shell
 
 A single-page application with hash-free routes, so every view is a URL:
@@ -1182,7 +1185,7 @@ otherwise.
 | [0001](../docs/adr/0001-static-serverless-client-side.md) | Static, serverless, client-side only | accepted |
 | [0002](../docs/adr/0002-two-implementations-differential-testing.md) | Two implementations, differential testing, no GPL engine code | accepted |
 | [0003](../docs/adr/0003-undecided-first-class-outcome.md) | Undecided is a first-class outcome | accepted |
-| — | Engine stack (Rust/WASM vs TypeScript) | open, decided by the M0 spike |
+| [0004](../docs/adr/0004-engine-stack.md) | Rust→WASM bit-packed engines; TypeScript `u8` as the reference floor | accepted, from measurement |
 | — | Site framework (Vite + vanilla TS vs framework) | open, leaning vanilla |
 | — | Licence | open, tracked in the tracker |
 | — | Ship embeddings or not | open, decided after the M1 sweep |
@@ -1196,7 +1199,7 @@ Each question has an owner-by-role and the milestone that must answer it.
 
 | Question | Resolved by |
 |---|---|
-| Which engine stack wins on startup and stepping cost? | M0 benchmark |
+| Which engine stack wins on startup and stepping cost? | **resolved**: ADR 0004 |
 | Does the atlas stream extra metric layers, or ship one per load? | M1 measurement |
 | How are embeddings shipped within the page budget? | M1 sweep result |
 | Are PR preview builds possible on Pages under current settings? | M0 deployment check |
