@@ -1,10 +1,19 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-// The atlas acceptance criteria that can be checked headlessly: the map paints, layers re-colour
-// without a reload, undecided cells stay hatched, clicks run the rule under the pointer, and the URL
-// restores the view exactly.
+// The atlas acceptance criteria that can be checked headlessly: the map streams the tiles it needs,
+// colourings re-colour without a reload, undecided cells stay hatched, clicks run the rule under the
+// pointer, and the URL restores the view exactly.
 
-async function mapPixels(page: import('@playwright/test').Page): Promise<number> {
+async function settle(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () =>
+      document.body.dataset.state === 'ready' &&
+      Number(document.body.dataset.tiles ?? '0') > 0 &&
+      Number(document.body.dataset.pending ?? '1') === 0,
+  );
+}
+
+async function mapPixels(page: Page): Promise<number> {
   return page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>('#atlas');
     if (!canvas) return 0;
@@ -19,33 +28,62 @@ async function mapPixels(page: import('@playwright/test').Page): Promise<number>
   });
 }
 
-test('the atlas paints the committed rule map', async ({ page }) => {
+async function snapshot(page: Page): Promise<string | undefined> {
+  return page.evaluate(() => document.querySelector<HTMLCanvasElement>('#atlas')?.toDataURL());
+}
+
+test('the atlas paints the committed rule map from tiles', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('status')).toContainText('512×512');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
+  await settle(page);
   expect(await mapPixels(page)).toBeGreaterThan(1000);
 });
 
-test('switching the colouring re-colours without a reload', async ({ page }) => {
+test('the map streams tiles for the window instead of fetching the layers', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.includes('/products/atlas/')) requests.push(url.pathname);
+  });
+
+  await page.goto('/?z=16');
+  await settle(page);
+
+  expect(requests.filter((path) => path.endsWith('.bin'))).toEqual([]);
+  expect(requests.filter((path) => path.includes('/tiles/class/0/'))).toHaveLength(1);
+  const finest = requests.filter((path) => path.includes('/tiles/class/2/'));
+  expect(finest.length).toBeGreaterThan(0);
+  expect(finest.length).toBeLessThanOrEqual(4);
+});
+
+test('switching the colouring streams that colouring and nothing else', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
-  const before = await page.evaluate(() => document.querySelector<HTMLCanvasElement>('#atlas')?.toDataURL());
+  await settle(page);
+
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.includes('/products/atlas/')) requests.push(url.pathname);
+  });
 
   await page.selectOption('#layer', 'activity');
-  const after = await page.evaluate(() => document.querySelector<HTMLCanvasElement>('#atlas')?.toDataURL());
+  await expect
+    .poll(() => requests.filter((path) => path.includes('/tiles/activity/')).length)
+    .toBeGreaterThan(0);
 
-  expect(after).not.toBe(before);
+  expect(requests.filter((path) => path.endsWith('.bin'))).toEqual([]);
   expect(new URL(page.url()).searchParams.get('metric')).toBe('activity');
   await expect(page.locator('#legend')).toContainText('0.00');
 });
 
 test('the disagreement layer toggles with its legend', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
-  const before = await page.evaluate(() => document.querySelector<HTMLCanvasElement>('#atlas')?.toDataURL());
+  await settle(page);
+  const before = await snapshot(page);
 
   await page.check('#disagreement');
-  const after = await page.evaluate(() => document.querySelector<HTMLCanvasElement>('#atlas')?.toDataURL());
+  await settle(page);
+  const after = await snapshot(page);
 
   expect(after).not.toBe(before);
   await expect(page.locator('#legend')).toContainText('disagree');
@@ -54,7 +92,7 @@ test('the disagreement layer toggles with its legend', async ({ page }) => {
 
 test('undecided rules are hatched and named in the legend', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
+  await settle(page);
   await expect(page.locator('#legend')).toContainText('undecided');
   await expect(page.locator('#legend .swatch.hatched')).toHaveCount(1);
 
@@ -75,7 +113,7 @@ test('undecided rules are hatched and named in the legend', async ({ page }) => 
 
 test('clicking the map runs that rule and updates the URL', async ({ page }) => {
   await page.goto('/?x=0&y=0&z=4');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
+  await settle(page);
 
   const box = await page.locator('#atlas').boundingBox();
   if (!box) throw new Error('the map has no box');
@@ -91,7 +129,7 @@ test('clicking the map runs that rule and updates the URL', async ({ page }) => 
 
 test('the URL restores the camera, layer and rule exactly', async ({ page }) => {
   await page.goto('/?rule=B36/S23&seed=7&metric=compression&x=100&y=200&z=2&dis=1');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
+  await settle(page);
 
   await expect(page.locator('#layer')).toHaveValue('compression');
   await expect(page.getByTestId('status')).toContainText('disagreement');
@@ -103,7 +141,7 @@ test('the URL restores the camera, layer and rule exactly', async ({ page }) => 
 
 test('the keyboard pans and zooms the map', async ({ page }) => {
   await page.goto('/?x=100&y=100&z=2');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
+  await settle(page);
 
   await page.locator('#atlas').focus();
   await page.keyboard.press('ArrowRight');
@@ -116,7 +154,7 @@ test('the keyboard pans and zooms the map', async ({ page }) => {
 
 test('a figure can be exported as a PNG with its reproduce link', async ({ page }) => {
   await page.goto('/?x=40&y=60&z=1');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
+  await settle(page);
 
   const download = page.waitForEvent('download');
   await page.click('#export');
@@ -142,7 +180,7 @@ test('first paint is inside the 2.5 s LCP budget', async ({ page }) => {
 
 test('the render path stays inside a 60 fps frame budget', async ({ page }) => {
   await page.goto('/?z=2');
-  await page.waitForFunction(() => document.body.dataset.state === 'ready');
+  await settle(page);
 
   const stats = await page.evaluate(async () => {
     const canvas = document.querySelector<HTMLCanvasElement>('#atlas');

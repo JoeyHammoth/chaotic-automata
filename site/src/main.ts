@@ -3,13 +3,15 @@ import {
   classLegend,
   createAtlasRenderer,
   cssColour,
-  loadAtlas,
+  disagreementLegend,
+  hatchCss,
+  loadManifest,
   panBy,
   rampLegend,
   ruleAt,
   screenToChart,
   zoomAt,
-  type AtlasData,
+  type AtlasManifest,
   type Camera,
   type LegendItem,
 } from './atlas';
@@ -52,31 +54,41 @@ function showError(message: string): void {
 }
 
 async function start(view: View): Promise<void> {
-  let data: AtlasData;
+  const base = `${import.meta.env.BASE_URL}products/atlas/`;
+  let manifest: AtlasManifest;
   try {
-    data = await loadAtlas(`${import.meta.env.BASE_URL}products/atlas/`);
+    manifest = await loadManifest(base);
   } catch (error) {
-    showError(`Cannot load the atlas data: ${error instanceof Error ? error.message : String(error)}`);
+    showError(
+      `Cannot load the atlas data: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return;
   }
 
-  for (const layer of data.manifest.layers) {
+  const chart = { width: manifest.space.tile[0], height: manifest.space.tile[1] };
+  for (const layer of manifest.layers) {
     const option = document.createElement('option');
     option.value = layer.metric;
     option.textContent = layer.metric.replaceAll('_', ' ');
     layerSelect.append(option);
   }
-  layerSelect.value = view.metric === 'class' || data.layers.has(view.metric) ? view.metric : 'class';
+  const known = new Set(['class', ...manifest.layers.map((layer) => layer.metric)]);
+  layerSelect.value = known.has(view.metric) ? view.metric : 'class';
   disagreementInput.checked = view.disagreement;
-  layerSelect.value = view.metric === 'class' || data.layers.has(view.metric) ? view.metric : 'class';
 
-  let camera: Camera = clampCamera(view.camera, data.width, data.height);
+  let camera: Camera = clampCamera(view.camera, chart.width, chart.height);
   // The renderer keeps this object by reference: mutating it is what makes a layer switch repaint.
   const atlasView = {
     layer: layerSelect.value,
     disagreement: disagreementInput.checked,
   };
-  const renderer = createAtlasRenderer(mapCanvas, data, atlasView);
+  const renderer = createAtlasRenderer(mapCanvas, {
+    base,
+    chart,
+    pyramid: manifest.tiles,
+    view: atlasView,
+    onPaint: () => draw(),
+  });
 
   function sizeCanvas(): void {
     const rect = mapCanvas.getBoundingClientRect();
@@ -98,22 +110,20 @@ async function start(view: View): Promise<void> {
     const metric = layerSelect.value;
     let items: LegendItem[];
     if (disagreementInput.checked) {
-      items = [
-        { label: 'classifiers disagree', colour: [240, 44, 38] },
-        { label: 'classifiers agree', colour: [60, 64, 78] },
-      ];
+      items = disagreementLegend(manifest.palette);
     } else if (metric === 'class') {
-      items = classLegend();
+      items = classLegend(manifest.palette, manifest.classes.names);
     } else {
-      const layer = data.manifest.layers.find((entry) => entry.metric === metric);
-      items = rampLegend(layer?.min ?? 0, layer?.max ?? 1);
+      const layer = manifest.layers.find((entry) => entry.metric === metric);
+      items = rampLegend(manifest.palette, layer?.min ?? 0, layer?.max ?? 1);
     }
     legendBox.replaceChildren(
       ...items.map((item) => {
         const row = document.createElement('li');
         const swatch = document.createElement('span');
         swatch.className = item.hatched ? 'swatch hatched' : 'swatch';
-        if (item.colour) swatch.style.background = cssColour(item.colour);
+        if (item.hatched) swatch.style.background = hatchCss(manifest.palette);
+        else if (item.colour) swatch.style.background = cssColour(item.colour);
         const label = document.createElement('span');
         label.textContent = item.label;
         row.append(swatch, label);
@@ -124,7 +134,7 @@ async function start(view: View): Promise<void> {
 
   function updateLabels(): void {
     labelsBox.replaceChildren(
-      ...data.manifest.space.landmarks.map((landmark) => {
+      ...manifest.space.landmarks.map((landmark) => {
         const item = document.createElement('li');
         item.textContent = `${landmark.name} · ${landmark.rule}`;
         const sx = (landmark.birth_index - camera.x) * camera.zoom;
@@ -140,11 +150,15 @@ async function start(view: View): Promise<void> {
     renderer.draw(camera);
     const span = (1 / camera.zoom).toFixed(1);
     const metric = disagreementInput.checked ? 'classifier disagreement' : layerSelect.value;
+    const streaming = renderer.pending > 0 ? ` · streaming ${renderer.pending}` : '';
     status.textContent =
-      `${data.width}×${data.height} rules · ${metric} · x ${camera.x.toFixed(0)} y ${camera.y.toFixed(0)} · ` +
-      `zoom ${camera.zoom.toFixed(2)}× (${span} cells/px) · ${data.manifest.profile} data`;
+      `${chart.width}×${chart.height} rules · ${metric} · x ${camera.x.toFixed(0)} y ${camera.y.toFixed(0)} · ` +
+      `zoom ${camera.zoom.toFixed(2)}× (${span} cells/px) · ${renderer.loaded} tiles${streaming} · ` +
+      `${manifest.profile} data`;
     document.body.dataset.zoom = String(camera.zoom);
     document.body.dataset.layer = layerSelect.value;
+    document.body.dataset.tiles = String(renderer.loaded);
+    document.body.dataset.pending = String(renderer.pending);
     document.body.dataset.state = 'ready';
     updateLabels();
   }
@@ -155,7 +169,7 @@ async function start(view: View): Promise<void> {
   }
 
   function move(next: Camera): void {
-    camera = clampCamera(next, data.width, data.height);
+    camera = clampCamera(next, chart.width, chart.height);
     draw();
     syncUrl();
   }
@@ -163,7 +177,7 @@ async function start(view: View): Promise<void> {
   function zoom(factor: number): void {
     const px = mapCanvas.width / 2;
     const py = mapCanvas.height / 2;
-    move(zoomAt(camera, factor, px, py, data.width, data.height));
+    move(zoomAt(camera, factor, px, py, chart.width, chart.height));
   }
 
   required<HTMLButtonElement>('#zoom-in').addEventListener('click', () => zoom(1.5));
@@ -174,27 +188,29 @@ async function start(view: View): Promise<void> {
 
   layerSelect.addEventListener('change', () => {
     atlasView.layer = layerSelect.value;
-    renderer.repaint();
     updateLegend();
     draw();
     syncUrl();
   });
   disagreementInput.addEventListener('change', () => {
     atlasView.disagreement = disagreementInput.checked;
-    renderer.repaint();
     updateLegend();
     draw();
     syncUrl();
   });
 
-  mapCanvas.addEventListener('wheel', (event) => {
-    event.preventDefault();
-    const rect = mapCanvas.getBoundingClientRect();
-    const scale = mapCanvas.width / rect.width;
-    const px = (event.clientX - rect.left) * scale;
-    const py = (event.clientY - rect.top) * scale;
-    move(zoomAt(camera, event.deltaY < 0 ? 1.2 : 1 / 1.2, px, py, data.width, data.height));
-  }, { passive: false });
+  mapCanvas.addEventListener(
+    'wheel',
+    (event) => {
+      event.preventDefault();
+      const rect = mapCanvas.getBoundingClientRect();
+      const scale = mapCanvas.width / rect.width;
+      const px = (event.clientX - rect.left) * scale;
+      const py = (event.clientY - rect.top) * scale;
+      move(zoomAt(camera, event.deltaY < 0 ? 1.2 : 1 / 1.2, px, py, chart.width, chart.height));
+    },
+    { passive: false },
+  );
 
   let dragging: { x: number; y: number } | null = null;
   mapCanvas.addEventListener('pointerdown', (event) => {
@@ -207,7 +223,7 @@ async function start(view: View): Promise<void> {
     const dx = (event.clientX - dragging.x) * scale;
     const dy = (event.clientY - dragging.y) * scale;
     dragging = { x: event.clientX, y: event.clientY };
-    move(panBy(camera, dx, dy, data.width, data.height));
+    move(panBy(camera, dx, dy, chart.width, chart.height));
   });
   mapCanvas.addEventListener('pointerup', () => {
     dragging = null;
@@ -216,20 +232,24 @@ async function start(view: View): Promise<void> {
   mapCanvas.addEventListener('click', (event) => {
     const rect = mapCanvas.getBoundingClientRect();
     const scale = mapCanvas.width / rect.width;
-    const point = screenToChart(camera, (event.clientX - rect.left) * scale, (event.clientY - rect.top) * scale);
+    const point = screenToChart(
+      camera,
+      (event.clientX - rect.left) * scale,
+      (event.clientY - rect.top) * scale,
+    );
     const x = Math.floor(point.x);
     const y = Math.floor(point.y);
-    if (x < 0 || y < 0 || x >= data.width || y >= data.height) return;
+    if (x < 0 || y < 0 || x >= chart.width || y >= chart.height) return;
     void runRule(ruleAt(x, y), x, y);
   });
 
   mapCanvas.addEventListener('keydown', (event) => {
     const step = 40;
     const keys: Record<string, () => void> = {
-      ArrowLeft: () => move(panBy(camera, step, 0, data.width, data.height)),
-      ArrowRight: () => move(panBy(camera, -step, 0, data.width, data.height)),
-      ArrowUp: () => move(panBy(camera, 0, step, data.width, data.height)),
-      ArrowDown: () => move(panBy(camera, 0, -step, data.width, data.height)),
+      ArrowLeft: () => move(panBy(camera, step, 0, chart.width, chart.height)),
+      ArrowRight: () => move(panBy(camera, -step, 0, chart.width, chart.height)),
+      ArrowUp: () => move(panBy(camera, 0, step, chart.width, chart.height)),
+      ArrowDown: () => move(panBy(camera, 0, -step, chart.width, chart.height)),
       '+': () => zoom(1.5),
       '=': () => zoom(1.5),
       '-': () => zoom(1 / 1.5),
@@ -269,7 +289,7 @@ async function start(view: View): Promise<void> {
     link.download = 'computation-atlas.png';
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 4000);
-    setRuleStatus(`exported a PNG with its reproduce link`, ruleStatus.dataset.rule ?? '');
+    setRuleStatus('exported a PNG with its reproduce link', ruleStatus.dataset.rule ?? '');
   }
 
   async function copyLink(url: string): Promise<void> {

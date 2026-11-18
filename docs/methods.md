@@ -60,7 +60,7 @@ Budgets live in the profile, never in code that hides them:
 |---|---|---|---|---|---|
 | `golden` | 4×4, four windows | 8 | 40 | 120 | 11, 23 |
 | `sample` | 32×32, four windows | 24 | 300 | 300 | 11, 23, 37, 53, 71, 97 |
-| `atlas` | 512×512, whole chart | 8 | 100 | 100 | 11, 23 |
+| `atlas` | 512×512, whole chart | 4 | 40 | 40 | 11 |
 
 The sample is four quadrants around the landmarks — Life `(15, 8)`, HighLife `(112, 8)`, Seeds
 `(7, 0)`, Day & Night `(index_of(456), index_of(472))` in Gray-coded chart coordinates — because no
@@ -106,6 +106,22 @@ whether the run resolved to a period ≤ 8 (*periodic*). Zero means all three ag
 disagrees. It is a disagreement rate, not a confidence.
 
 Undecided cells are hatched in every colouring, so "the cap was hit" never reads as a colour.
+
+### The tile pyramid
+
+The map is also pre-rendered: `src/computation_atlas/tiles.py` writes
+`products/atlas/tiles/<colouring>/<level>/<x>_<y>.png` — six colourings (class, the four metrics and
+disagreement) over three levels of 128 px tiles. Level 2 is one pixel per cell; each level above it is
+the half-resolution parent, box-filtered from the level below, so undecided hatching averages into a
+texture rather than disappearing.
+
+The page therefore fetches the tiles for the window it is showing — 17 of them at 1:1, a handful when
+zoomed in, a coarse parent first — instead of 2.8 MB of layers, and switching colouring fetches only
+that colouring's tiles. The palette is written into the manifest by the pipeline and read back by the
+page, so a legend cannot drift from the pixels it labels. `tests/test_tiles.py` rebuilds the committed
+pyramid from the committed layers and fails if a single pixel differs (the version hashes pixels,
+not deflate output), and a sweep writes its tiles in
+the same run as its layers.
 
 ### Illumination
 

@@ -1,5 +1,11 @@
 // The `CATL` reader from design §5.4. A reader that ignores `version` is a bug, so this one refuses a
 // schema it does not know and says so in the visible error, not in the console.
+//
+// The page itself no longer reads the layers: it streams tiles. `parseProduct` stays because the binary
+// format is the pipeline's contract, and this is where it is checked against the bytes it writes.
+
+import type { Palette } from './palette';
+import type { TilePyramid } from './tiles';
 
 export const MAGIC = 'CATL';
 export const VERSION = 1;
@@ -77,52 +83,39 @@ export function parseProduct(buffer: ArrayBuffer): Product {
   throw new Error(`unsupported dtype ${String(meta.dtype)}`);
 }
 
+export interface Landmark {
+  name: string;
+  rule: string;
+  birth_index: number;
+  survival_index: number;
+}
+
 export interface AtlasManifest {
   kind: string;
   profile: string;
   git_sha: string;
   seeds: number[];
   budgets: Record<string, unknown>;
-  space: {
-    tile: [number, number];
-    landmarks: { name: string; rule: string; birth_index: number; survival_index: number }[];
-  };
+  space: { tile: [number, number]; landmarks: Landmark[] };
   layers: { metric: string; path: string; min: number; max: number; bytes: number }[];
   classes: { path: string; channels: string[]; names: string[]; counts: Record<string, number> };
+  palette: Palette;
+  tiles: TilePyramid;
 }
 
-export interface AtlasData {
-  manifest: AtlasManifest;
-  width: number;
-  height: number;
-  layers: Map<string, Float32Array>;
-  classes: Uint8Array;
-}
-
-export async function loadAtlas(base: string, fetchImpl: typeof fetch = fetch): Promise<AtlasData> {
-  const manifestUrl = `${base}manifest.json`;
-  const response = await fetchImpl(manifestUrl);
-  if (!response.ok) throw new Error(`cannot load ${manifestUrl}: ${response.status}`);
+/** The manifest is the whole interface now: geometry, palette, landmarks and where the tiles live. */
+export async function loadManifest(
+  base: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<AtlasManifest> {
+  const url = `${base}manifest.json`;
+  const response = await fetchImpl(url);
+  if (!response.ok) throw new Error(`cannot load ${url}: ${response.status}`);
   const manifest = (await response.json()) as AtlasManifest;
-
-  const layers = new Map<string, Float32Array>();
-  for (const layer of manifest.layers) {
-    const layerResponse = await fetchImpl(`${base}${layer.path}`);
-    if (!layerResponse.ok) throw new Error(`cannot load ${layer.path}: ${layerResponse.status}`);
-    layers.set(layer.metric, parseProduct(await layerResponse.arrayBuffer()).floats);
+  if (!manifest.tiles || !manifest.palette) {
+    throw new Error(
+      'this product has no tile pyramid; render one with `python -m computation_atlas.tiles`',
+    );
   }
-
-  const classResponse = await fetchImpl(`${base}${manifest.classes.path}`);
-  if (!classResponse.ok) throw new Error(`cannot load ${manifest.classes.path}`);
-  const parsedClasses = parseProduct(await classResponse.arrayBuffer());
-  const classes = parsedClasses.bytes;
-  if (!classes) throw new Error('classes product is not u8');
-
-  return {
-    manifest,
-    width: parsedClasses.meta.width,
-    height: parsedClasses.meta.height,
-    layers,
-    classes,
-  };
+  return manifest;
 }
