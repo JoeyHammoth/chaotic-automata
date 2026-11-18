@@ -388,7 +388,8 @@ tests/                                 pipeline tests, golden fixtures, differen
 docs/                                  methods, limitations, architecture, ADRs, research
 ```
 
-`crates/` and `site/` do not exist yet; they are created by M0 and M1 respectively (Section 11).
+`crates/` and `site/` exist as of the M0 vertical slice (#12); the atlas, the Inspector and HashLife are
+still to come (Section 11).
 
 ### 4.4 Toolchain
 

@@ -11,7 +11,7 @@ computation either survives or dies.
 
 | | |
 |---|---|
-| **Status** | Pre-implementation. Repository foundations, backlog and docs are in place; no app code yet. |
+| **Status** | Vertical slice running: the packed engine steps B3/S23 and the browser shell runs it from the URL. The atlas itself is not built. |
 | **Design** | [`source/Computation_Atlas_v2_Design_Doc.md`](source/Computation_Atlas_v2_Design_Doc.md) — draft 2, sections 0–12 plus appendices |
 | **Deliverable** | Static, serverless web app on GitHub Pages, plus a reproducible offline data pipeline |
 | **Audience** | Admissions committees, research-software hiring managers, computational physics / ML-for-science teams |
@@ -57,6 +57,8 @@ source/
   python/                              # legacy sandpile lab — heritage (M7), not yet migrated
 src/computation_atlas/                 # offline data pipeline (Python)
 tests/                                 # pipeline tests
+crates/                                # Rust engine workspace: ca-core, ca-wasm (ADR 0004)
+site/                                  # TypeScript app: Vite, canvas, URL state
 docs/
   architecture.md                      # short architecture summary
   methods.md                           # scientific methods, constants and citations
@@ -79,6 +81,18 @@ source .venv/bin/activate        # Windows: .venv/Scripts/activate
 pip install -e ".[dev]"
 pytest -q
 ruff check .
+```
+
+The engine and the site have their own toolchains:
+
+```bash
+cargo test --workspace                    # packed engine vs the u8 reference, bit-exact
+cd site
+npm install
+npm run build:wasm                        # optional; without it the site uses the CPU reference
+npm run dev                               # http://127.0.0.1:5173/?rule=B3/S23&seed=1
+npm run typecheck && npm test              # site unit tests
+npm run e2e                               # headless smoke test (npx playwright install chromium first)
 ```
 
 The legacy sandpile lab is separate and self-contained:
