@@ -122,6 +122,7 @@ It writes plots into `Grids/`, `Histograms/`, `Line_Plots/` and `Log_Plots/`.
 | Document | Use it for |
 |---|---|
 | [`docs/methods.md`](docs/methods.md) | Algorithms, verified constants, citations |
+| [`docs/performance.md`](docs/performance.md) | Measured load and frame time on the deployed build |
 | [`docs/limitations.md`](docs/limitations.md) | Honest scope and failure modes |
 | [`docs/architecture.md`](docs/architecture.md) | Proposed system layout and data flow |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestones and ordering |
