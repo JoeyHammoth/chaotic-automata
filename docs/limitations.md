@@ -44,9 +44,11 @@ deliverable, not an apology.
   300-step period cap leave 2,606 of
   4,096 cells `undecided`. That is the honest answer to "did this run
   resolve?", not a claim that nothing is known about the rule.
-- **The atlas product uses preview budgets.** `products/atlas` is 512×512 with 4 warm steps, 40
-  observed steps, a 40-step period cap and one seed: enough to draw a map, not enough to publish a
-  claim. The published sweep is #16; when it lands only the numbers change, not the format.
+- **The atlas product reports undecided mass.** `products/atlas` is 512×512 with 24 warm steps, 300
+  observed steps, a 300-step period cap and six seeds per rule: the same budgets as the 64×64
+  sample, so the map and the sample measure the same quantity and `damage_died_rate` is no longer
+  sample-only. At these budgets **198,719 of the 262,144 rules (75.8%)** stay `undecided`: a longer
+  budget moves the boundary, it does not reach a proof, and the manifest carries the fraction.
 - **Four metrics are deferred, not approximated**: localised-structure score (needs M2 particles),
   Lyapunov profile (design stretch), damage front speeds (only the growth rate is measured) and
   embeddings (GPU job). `docs/methods.md` says so beside the metric table.
