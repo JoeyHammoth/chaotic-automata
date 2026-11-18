@@ -1,0 +1,19 @@
+[package]
+name = "ca-sweep"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Per-rule metric sweep for the atlas sample"
+
+[lib]
+name = "ca_sweep"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ca-sweep"
+path = "src/main.rs"
+
+[dependencies]
+ca-core = { path = "../ca-core" }
+flate2 = "1"

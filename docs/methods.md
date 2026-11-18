@@ -48,6 +48,50 @@ Every metric carries a bootstrap interval over seeds. The **metric disagreement 
 metric-derived classifications disagree — is a first-class layer, because it shows where "chaos" is a
 definition-dependent label.
 
+### The sample sweep, as implemented
+
+`crates/ca-sweep` runs the §5.2 protocol per (rule, seed) and emits one JSON line;
+`src/computation_atlas/sweep.py` aggregates across seeds (percentile bootstrap, 200 resamples),
+classifies, and writes the binary products plus a manifest.
+
+Budgets live in the profile, never in code that hides them:
+
+| Profile | Region | Warm | Max steps | Period cap | Seeds |
+|---|---|---|---|---|---|
+| `golden` | 4×4, four windows | 8 | 40 | 120 | 11, 23 |
+| `sample` | 32×32, four windows | 24 | 300 | 300 | 11, 23, 37, 53, 71, 97 |
+
+The sample is four quadrants around the landmarks — Life `(15, 8)`, HighLife `(112, 8)`, Seeds
+`(7, 0)`, Day & Night `(index_of(456), index_of(472))` in Gray-coded chart coordinates — because no
+single 64×64 region contains all four. The product is a 64×64 tile with one quadrant per landmark, so
+the output is itself a coarse chart of the same two axes.
+
+What is actually computed:
+
+- **Activity** — mean fraction of cells changing per observed step.
+- **Block entropy** — normalised Shannon entropy of 3×3 spatial blocks over up to 8 sampled frames.
+- **Temporal entropy** — normalised entropy of each cell's four-frame history over the same frames.
+- **Compression complexity** — deflated size over raw size of the bit-packed spacetime diagram
+  (deflate at the fast level; the codec is part of the definition, as the table warns).
+- **Damage spreading** — twin replicas differing in one cell; growth over the first 16 observed steps,
+  plus the fraction of seeds where the damage died.
+- **Transient / period** — first repeat of a 64-bit state fingerprint; no repeat within
+  `max_steps + period_cap` is `undecided`.
+- **Langton lambda** — fraction of non-quiescent rule-table entries, kept as the cautionary metric.
+
+Deferred, with reasons rather than silence: the localised-structure score (needs M2's particle
+machinery, #19), the Lyapunov profile (marked stretch in the design), and embeddings (GPU job, §5.6,
+not part of the sample).
+
+Classification order, implemented once in `computation_atlas.metrics.classify`: cap hit → `undecided`;
+period 1 with no activity → `static`; short period and low activity → `periodic`; damage dies in a
+sparse field → `ordered`; high activity or entropy → `chaotic`; surviving damage in a moderately
+entropic field → `complex`; otherwise `ordered`. The cap check is first, so a capped run is never
+coloured chaotic (ADR 0003).
+
+Per-seed generators are derived, not sampled from time: FNV-1a over the rule's chart position, a sweep
+salt and the seed base, then folded to 32 bits.
+
 ### Illumination
 
 Filmstrip (≈8 frames, 64×64) per rule → vision embedding → 2D reduction (UMAP/PCA) for an alternative
