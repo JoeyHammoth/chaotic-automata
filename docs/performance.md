@@ -55,6 +55,11 @@ palette and legend being written into one manifest is the protection the tool ca
 map is also `role="application"`, which hands arrow and zoom keys to the app; the audit confirms
 the label promising that exists, not that the interaction is usable by ear.
 
+The score is gated rather than merely recorded: the `a11y` job in `.github/workflows/ci.yml` runs
+the same Lighthouse version against the production build on every push and pull request, and fails
+below 95. It also fails a report that scored too few audits to mean anything, because a page that
+never boots scores 100 for having nothing to object to.
+
 ## What these numbers do not show
 
 - **No GPU was involved.** The measurement ran in headless Chrome, which rasterises in software, so
@@ -68,6 +73,7 @@ the label promising that exists, not that the interaction is usable by ear.
   Lighthouse's mobile viewport, and validates markup; the map's colours and its
   `role="application"` interaction remain untested with assistive technology.
 
-The committed e2e suite (`site/e2e/atlas.spec.ts`) asserts the same two budgets against a local
-server in CI, so a regression fails the build before it reaches this page. This document is the
-record of the deployed artefact, which CI cannot observe.
+The committed e2e suite (`site/e2e/atlas.spec.ts`) asserts the LCP and frame budgets against a
+local server in CI, and the `a11y` job does the same for accessibility, so a regression fails the
+build before it reaches this page. This document is the record of the deployed artefact, which CI
+cannot observe.
