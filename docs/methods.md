@@ -60,6 +60,7 @@ Budgets live in the profile, never in code that hides them:
 |---|---|---|---|---|---|
 | `golden` | 4×4, four windows | 8 | 40 | 120 | 11, 23 |
 | `sample` | 32×32, four windows | 24 | 300 | 300 | 11, 23, 37, 53, 71, 97 |
+| `atlas` | 512×512, whole chart | 8 | 100 | 100 | 11, 23 |
 
 The sample is four quadrants around the landmarks — Life `(15, 8)`, HighLife `(112, 8)`, Seeds
 `(7, 0)`, Day & Night `(index_of(456), index_of(472))` in Gray-coded chart coordinates — because no
@@ -91,6 +92,20 @@ coloured chaotic (ADR 0003).
 
 Per-seed generators are derived, not sampled from time: FNV-1a over the rule's chart position, a sweep
 salt and the seed base, then folded to 32 bits.
+
+### What the atlas ships
+
+The map is drawn from `products/atlas/`: one fp16 layer per colouring (activity, spatial entropy,
+compression, damage rate) plus a u8 `classes.bin` whose channels are the class code, the undecided flag
+and a disagreement score. Class colouring uses the same tree as the sample, so the map and the published
+numbers cannot disagree.
+
+The disagreement score is the fraction of indicator pairs that differ across three cheap, independent
+readings — damage survival (≥ 0.5 of seeds died → *ordered*), entropy level (≥ 0.5 → *chaotic*), and
+whether the run resolved to a period ≤ 8 (*periodic*). Zero means all three agree; one means every pair
+disagrees. It is a disagreement rate, not a confidence.
+
+Undecided cells are hatched in every colouring, so "the cap was hit" never reads as a colour.
 
 ### Illumination
 

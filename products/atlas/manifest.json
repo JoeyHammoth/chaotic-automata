@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "kind": "layers",
+  "pipeline_version": "0.1.0",
+  "git_sha": "2a647d828edaf2dce8ee66689ec5014db7e1f992",
+  "profile": "atlas",
+  "toolchain": {
+    "python": "3.14.7",
+    "sweep_binary": "ca-sweep"
+  },
+  "space": {
+    "family": "life-like",
+    "tile": [
+      512,
+      512
+    ],
+    "axes": {
+      "x": "birth mask (Gray)",
+      "y": "survival mask (Gray)"
+    },
+    "unique_rules": 262144,
+    "landmarks": [
+      {
+        "name": "Life",
+        "rule": "B3/S23",
+        "birth_index": 15,
+        "survival_index": 8,
+        "claim": "Class IV at this scale: activity stays well below the rebuild-every-step rules, damage survives, and the field keeps structure rather than boiling."
+      },
+      {
+        "name": "HighLife",
+        "rule": "B36/S23",
+        "birth_index": 112,
+        "survival_index": 8,
+        "claim": "Life plus the replicator: activity and entropy in Life's band, with damage surviving every seed sampled here."
+      },
+      {
+        "name": "Seeds",
+        "rule": "B2/S",
+        "birth_index": 7,
+        "survival_index": 0,
+        "claim": "Explosive: no cell survives, so the grid is rebuilt from scratch every step."
+      },
+      {
+        "name": "Day & Night",
+        "rule": "B3678/S34678",
+        "birth_index": 368,
+        "survival_index": 367,
+        "claim": "Self-complementary and quiet on this torus: soups rarely settle into a single still life, but activity stays low because large ordered regions persist."
+      }
+    ]
+  },
+  "seeds": [
+    11
+  ],
+  "budgets": {
+    "lattice": [
+      64,
+      64
+    ],
+    "warm": 4,
+    "max_steps": 40,
+    "period_cap": 40,
+    "cadence": 8,
+    "frames": 8,
+    "density": 30
+  },
+  "layers": [
+    {
+      "metric": "activity",
+      "path": "activity.bin",
+      "sha256": "8cd6b7b4f66389fc665997216d82eff1874d3f892b52e39ceea153f0bc0ec5b2",
+      "bytes": 524312,
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "metric": "spatial_entropy",
+      "path": "spatial_entropy.bin",
+      "sha256": "c826f4ef58e283a7b9c8c931a71c2bf1bab01859b0a2a497c8aa1587a87b1e7e",
+      "bytes": 524312,
+      "min": 0.0,
+      "max": 0.998414
+    },
+    {
+      "metric": "compression",
+      "path": "compression.bin",
+      "sha256": "b8e584da49731a816194de14651274dc1a018f852ae22fed2829b3aafb20d994",
+      "bytes": 524312,
+      "min": 0.015625,
+      "max": 1.009766
+    },
+    {
+      "metric": "damage_rate",
+      "path": "damage_rate.bin",
+      "sha256": "474297e85e30a01c4e9af3ed8ee6a2b16fa411b01c5996dcd2e927b2ee6b6767",
+      "bytes": 524312,
+      "min": -0.6,
+      "max": 38.8
+    }
+  ],
+  "classes": {
+    "path": "classes.bin",
+    "sha256": "285495158b1d19d98a283af305ca0490242dc6de21c5498cf900320f4c00eb51",
+    "bytes": 786456,
+    "channels": [
+      "class",
+      "undecided",
+      "disagreement"
+    ],
+    "names": [
+      "static",
+      "periodic",
+      "ordered",
+      "complex",
+      "chaotic",
+      "undecided"
+    ],
+    "counts": {
+      "static": 4918,
+      "periodic": 27095,
+      "ordered": 5675,
+      "complex": 10071,
+      "chaotic": 4420,
+      "undecided": 209965
+    }
+  },
+  "header_bytes": 24
+}

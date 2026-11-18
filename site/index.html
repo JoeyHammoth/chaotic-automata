@@ -3,34 +3,73 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Computation Atlas — live rule</title>
-    <meta name="description" content="A cellular automaton running live, addressed entirely by the URL." />
+    <title>Computation Atlas — the map of simple programs</title>
+    <meta
+      name="description"
+      content="A navigable map of 262,144 cellular automata, coloured by what each rule does. Every pixel is a rule; click it to run it."
+    />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <main>
       <header>
         <h1>Computation Atlas</h1>
-        <p class="lede">One rule, running live. The view is the URL.</p>
+        <p class="lede">
+          262,144 Life-like rules. x is the birth mask, y the survival mask, both in Gray order, so
+          neighbours differ by one condition.
+        </p>
       </header>
 
       <p id="error" class="error" role="alert" hidden></p>
 
-      <div class="stage">
-        <canvas
-          id="grid"
-          width="256"
-          height="256"
-          role="img"
-          aria-label="Cellular automaton grid"
-        ></canvas>
-      </div>
+      <section class="atlas" aria-label="Rule space map">
+        <div class="controls">
+          <label for="layer">Colour by</label>
+          <select id="layer" name="layer">
+            <option value="class">class</option>
+          </select>
+          <label class="toggle"><input type="checkbox" id="disagreement" /> disagreement</label>
+          <span class="spacer"></span>
+          <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+          <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+          <button type="button" id="zoom-reset">Reset</button>
+          <button type="button" id="export">Export PNG</button>
+          <button type="button" id="copy-link">Copy link</button>
+        </div>
 
-      <p id="status" class="status" data-testid="status" aria-live="polite">starting…</p>
+        <div class="map">
+          <canvas
+            id="atlas"
+            width="512"
+            height="512"
+            tabindex="0"
+            role="application"
+            aria-label="Rule-space map. Arrow keys pan, plus and minus zoom, zero resets. Press Enter or click to run the rule under the pointer."
+          ></canvas>
+          <ul id="labels" class="labels" aria-live="off"></ul>
+        </div>
+
+        <ul id="legend" class="legend" aria-label="Legend"></ul>
+        <p id="status" class="status" data-testid="status" aria-live="polite">loading the map…</p>
+      </section>
+
+      <section class="rule" aria-label="Live rule">
+        <h2 id="rule-heading">Run a rule</h2>
+        <canvas id="rule-canvas" width="128" height="128" role="img" aria-label="Live cellular automaton"></canvas>
+        <p id="rule-status" class="status" aria-live="polite">Click the map to run a rule.</p>
+      </section>
 
       <details class="summary">
-        <summary>Text description of the current view</summary>
-        <p id="description">Waiting for the first generation.</p>
+        <summary>How to read the map</summary>
+        <p>
+          Each pixel is one of the 262,144 Life-like rules, coloured by the selected metric. Undecided
+          rules — runs that hit the step cap without resolving — are hatched rather than coloured, so
+          "we do not know yet" never looks like a result. The disagreement layer marks cells where
+          independent indicators (damage, entropy, period) imply different classes.
+        </p>
+        <p id="description">
+          Loading the atlas. The view is the URL: layer, camera, rule and seed all round-trip.
+        </p>
       </details>
     </main>
 

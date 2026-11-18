@@ -16,9 +16,26 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .metrics import CLASS_CODES, METRICS, Interval, RuleSummary, bootstrap_interval, classify
-from .product import HEADER_BYTES, encode_labels, encode_product, sha256_of
-from .space import LANDMARKS, Cell, canonical_at, landmark_cells, sample_layout, sample_windows
+from .metrics import (
+    CLASS_CODES,
+    METRICS,
+    Interval,
+    RuleSummary,
+    bootstrap_interval,
+    classify,
+    indicator_disagreement,
+)
+from .product import HEADER_BYTES, encode_labels, encode_layer, encode_product, sha256_of
+from .space import (
+    LANDMARKS,
+    Cell,
+    Window,
+    canonical_at,
+    chart_layout,
+    landmark_cells,
+    sample_layout,
+    sample_windows,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PIPELINE_VERSION = "0.1.0"
@@ -37,6 +54,11 @@ class Profile:
     offset: int = 8
     cadence: int = 8
     frames: int = 8
+    # "landmarks" lays out four quadrants around the landmark rules; "chart" covers the whole chart.
+    layout: str = "landmarks"
+    # When set, write one fp16 file per metric instead of a single f32 metrics file.
+    layers: tuple[str, ...] = ()
+    threads: int = 1
 
     def budgets(self) -> dict[str, object]:
         return {
@@ -59,6 +81,19 @@ PROFILES: dict[str, Profile] = {
         max_steps=40,
         period_cap=120,
         seeds=(11, 23),
+    ),
+    # The atlas product: the whole 512x512 chart, cheap budgets, layers for the map.
+    "atlas": Profile(
+        name="atlas",
+        quadrant=512,
+        warm=4,
+        max_steps=40,
+        period_cap=40,
+        seeds=(11,),
+        offset=0,
+        layout="chart",
+        layers=("activity", "spatial_entropy", "compression", "damage_rate"),
+        threads=16,
     ),
     # The sample product: four 32x32 quadrants, one around each landmark.
     "sample": Profile(
@@ -106,13 +141,28 @@ class SweepResult:
 
 def run_sweep(profile: Profile, binary: str | os.PathLike[str] | None = None) -> SweepResult:
     path = find_binary(binary)
-    cells = sample_layout(profile.quadrant, profile.offset)
-    windows = sample_windows(profile.quadrant, profile.offset)
+    if profile.layout == "chart":
+        cells = chart_layout(profile.quadrant)
+        windows = (Window(0, 0, profile.quadrant),)
+    else:
+        cells = sample_layout(profile.quadrant, profile.offset)
+        windows = sample_windows(profile.quadrant, profile.offset)
     unique: dict[tuple[int, int], None] = {}
     for cell in cells:
         unique.setdefault((cell.birth_index, cell.survival_index), None)
 
-    command = [str(path), "--salt", str(profile.salt)]
+    scratch = REPO_ROOT / ".scratch"
+    scratch.mkdir(exist_ok=True)
+    rows_path = scratch / f"sweep-{profile.name}.jsonl"
+    command = [
+        str(path),
+        "--salt",
+        str(profile.salt),
+        "--threads",
+        str(profile.threads),
+        "--out",
+        str(rows_path),
+    ]
     for flag, value in (
         ("--lattice", LATTICE),
         ("--warm", profile.warm),
@@ -135,11 +185,13 @@ def run_sweep(profile: Profile, binary: str | os.PathLike[str] | None = None) ->
         raise RuntimeError(f"ca-sweep failed ({completed.returncode}): {completed.stderr.strip()}")
 
     rows: dict[tuple[int, int], list[dict[str, object]]] = {key: [] for key in unique}
-    for line in completed.stdout.splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        rows[(int(row["bx"]), int(row["by"]))].append(row)
+    with rows_path.open(encoding="utf-8") as stream:
+        for line in stream:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            rows[(int(row["bx"]), int(row["by"]))].append(row)
+    rows_path.unlink(missing_ok=True)
 
     result = SweepResult(profile=profile, cells=cells, binary=str(path))
     result.summaries = {key: summarise(key, rule_rows) for key, rule_rows in sorted(rows.items())}
@@ -212,6 +264,8 @@ def build_products(result: SweepResult, out_dir: str | Path) -> dict[str, object
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     profile = result.profile
+    if profile.layers:
+        return _build_layers(result, out)
     quadrant = profile.quadrant
     width = height = quadrant * 2
 
@@ -320,6 +374,102 @@ def build_products(result: SweepResult, out_dir: str | Path) -> dict[str, object
                 "bytes": len(rules_bytes),
             },
         ],
+        "header_bytes": HEADER_BYTES,
+    }
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return manifest
+
+
+def _build_layers(result: SweepResult, out: Path) -> dict[str, object]:
+    """The atlas shape: one fp16 file per colouring plus a u8 class/disagreement file."""
+    profile = result.profile
+    width = height = profile.quadrant
+    keys = [(cell.birth_index, cell.survival_index) for cell in result.cells]
+    summaries = [result.summaries[key] for key in keys]
+
+    layer_files = []
+    for metric in profile.layers:
+        raw = [summary.intervals[metric].mean for summary in summaries]
+        finite = [value for value in raw if not math.isnan(value)]
+        low = min(finite) if finite else 0.0
+        high = max(finite) if finite else 1.0
+        values = [0.0 if math.isnan(value) else value for value in raw]
+        data = encode_layer(values, width=width, height=height)
+        path = f"{metric}.bin"
+        (out / path).write_bytes(data)
+        layer_files.append(
+            {
+                "metric": metric,
+                "path": path,
+                "sha256": sha256_of(data),
+                "bytes": len(data),
+                "min": low,
+                "max": high,
+            }
+        )
+
+    labels: list[int] = []
+    for summary in summaries:
+        disagreement = indicator_disagreement(
+            spatial_entropy=summary.intervals["spatial_entropy"].mean,
+            damage_died_rate=summary.intervals["damage_died_rate"].mean,
+            period=(
+                None
+                if math.isnan(summary.intervals["period"].mean)
+                else summary.intervals["period"].mean
+            ),
+        )
+        labels.extend(
+            [
+                summary.code,
+                1 if summary.undecided_mass > 0.0 else 0,
+                round(disagreement * 255),
+            ]
+        )
+    classes_data = encode_labels(labels, channels=3, width=width, height=height)
+    (out / "classes.bin").write_bytes(classes_data)
+
+    class_counts = {name: 0 for name in CLASS_CODES}
+    for code in labels[0::3]:
+        class_counts[list(CLASS_CODES)[code]] += 1
+
+    manifest = {
+        "schema": 1,
+        "kind": "layers",
+        "pipeline_version": PIPELINE_VERSION,
+        "git_sha": _git_sha(),
+        "profile": profile.name,
+        "toolchain": {
+            "python": sys.version.split()[0],
+            "sweep_binary": os.path.basename(result.binary),
+        },
+        "space": {
+            "family": "life-like",
+            "tile": [width, height],
+            "axes": {"x": "birth mask (Gray)", "y": "survival mask (Gray)"},
+            "unique_rules": result.unique_rules,
+            "landmarks": [
+                {
+                    "name": landmark.name,
+                    "rule": landmark.rule,
+                    "birth_index": landmark.birth_index,
+                    "survival_index": landmark.survival_index,
+                    "claim": landmark.claim,
+                }
+                for landmark in LANDMARKS
+            ],
+        },
+        "seeds": list(profile.seeds),
+        "budgets": profile.budgets(),
+        "layers": layer_files,
+        "classes": {
+            "path": "classes.bin",
+            "sha256": sha256_of(classes_data),
+            "bytes": len(classes_data),
+            "channels": ["class", "undecided", "disagreement"],
+            "names": list(CLASS_CODES),
+            "counts": class_counts,
+        },
         "header_bytes": HEADER_BYTES,
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

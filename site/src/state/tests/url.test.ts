@@ -1,58 +1,73 @@
 import { describe, expect, it } from 'vitest';
-import { readView, writeView } from '../index';
-import { canonicalRule, parseRule } from '../../engine';
+import { readView, writeView, DEFAULT_CAMERA } from '../index';
 
-const base = new URL('https://example.test/atlas/');
+const base = 'https://example.test/';
 
-describe('url state', () => {
-  it('defaults to Life with seed 1', () => {
-    const result = readView(base);
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.view.canonical).toBe('B3/S23');
-      expect(result.view.seed).toBe(1);
-      expect(result.view.size).toBe(256);
-    }
-  });
+function read(search: string) {
+  return readView(new URL(`${base}${search}`));
+}
 
-  it('canonicalises the rule in the URL', () => {
-    const result = readView(new URL('https://example.test/?rule=b36/s23&seed=9'));
+describe('readView', () => {
+  it('defaults to Life, seed 1 and the class colouring', () => {
+    const result = read('');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.view.canonical).toBe('B36/S23');
-    expect(result.view.seed).toBe(9);
+    expect(result.view.canonical).toBe('B3/S23');
+    expect(result.view.seed).toBe(1);
+    expect(result.view.metric).toBe('class');
+    expect(result.view.disagreement).toBe(false);
+    expect(result.view.camera).toEqual(DEFAULT_CAMERA);
   });
 
-  it('round-trips through writeView', () => {
-    const rule = parseRule('B36/S23');
-    const url = writeView(base, { rule, canonical: canonicalRule(rule), seed: 42, size: 128, steps: 12 });
-    const result = readView(url);
+  it('canonicalises a lower-case rule', () => {
+    const result = read('?rule=b3/s23');
+    expect(result.ok && result.view.canonical).toBe('B3/S23');
+  });
+
+  it('reads the camera and layer', () => {
+    const result = read('?metric=activity&x=100.5&y=200&z=4&dis=1');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.view.seed).toBe(42);
-    expect(result.view.size).toBe(128);
-    expect(result.view.canonical).toBe('B36/S23');
-    expect(result.view.steps).toBe(12);
-    expect(readView(base).ok && readView(base)).toMatchObject({ view: { steps: null } });
+    expect(result.view.metric).toBe('activity');
+    expect(result.view.disagreement).toBe(true);
+    expect(result.view.camera).toEqual({ x: 100.5, y: 200, zoom: 4 });
   });
 
-  it('reports malformed rules instead of throwing', () => {
-    const result = readView(new URL('https://example.test/?rule=B9/S23'));
+  it('rejects a camera outside the chart', () => {
+    expect(read('?x=600').ok).toBe(false);
+    expect(read('?z=100').ok).toBe(false);
+    expect(read('?z=abc').ok).toBe(false);
+  });
+
+  it('rejects a malformed rule visibly', () => {
+    const result = read('?rule=B9/S23');
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/out of range/);
+    if (result.ok) return;
+    expect(result.message).toContain('out of range');
   });
 
-  it('rejects impossible steps', () => {
-    const result = readView(new URL('https://example.test/?steps=1.5'));
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/steps/);
+  it('rejects a size that is not a multiple of 64', () => {
+    expect(read('?size=100').ok).toBe(false);
+  });
+});
+
+describe('writeView', () => {
+  it('round-trips every part of the view', () => {
+    const first = read('?rule=B36/S23&seed=7&metric=compression&dis=1&x=12&y=34&z=2.5');
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const url = writeView(new URL(base), first.view);
+    const second = readView(url);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.view).toEqual(first.view);
   });
 
-  it('rejects impossible seeds and sizes', () => {
-    const seed = readView(new URL('https://example.test/?seed=abc'));
-    expect(seed.ok).toBe(false);
-    const size = readView(new URL('https://example.test/?size=100'));
-    expect(size.ok).toBe(false);
-    if (!size.ok) expect(size.message).toMatch(/multiple of 64/);
+  it('omits defaults so the canonical URL stays short', () => {
+    const result = read('?rule=B3/S23&seed=1');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const url = writeView(new URL(`${base}?junk=1`), result.view);
+    expect(url.search).toBe('?rule=B3%2FS23&seed=1');
   });
 });

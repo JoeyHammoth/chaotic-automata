@@ -43,6 +43,9 @@ deliverable, not an apology.
   300-step period cap leave 2,606 of
   4,096 cells `undecided`. That is the honest answer to "did this run
   resolve?", not a claim that nothing is known about the rule.
+- **The atlas product uses preview budgets.** `products/atlas` is 512×512 with 8 warm steps, 100
+  observed steps and 2 seeds: enough to draw a map, not enough to publish a claim. The published sweep
+  is #16; when it lands only the numbers change, not the format.
 - **Four metrics are deferred, not approximated**: localised-structure score (needs M2 particles),
   Lyapunov profile (design stretch), damage front speeds (only the growth rate is measured) and
   embeddings (GPU job). `docs/methods.md` says so beside the metric table.
