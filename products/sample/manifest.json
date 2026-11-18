@@ -1,0 +1,226 @@
+{
+  "schema": 1,
+  "pipeline_version": "0.1.0",
+  "git_sha": "56bd4f7a0e05cc2e982bd418e8661c0989807656",
+  "profile": "sample",
+  "toolchain": {
+    "python": "3.14.7",
+    "sweep_binary": "ca-sweep.exe"
+  },
+  "space": {
+    "family": "life-like",
+    "quadrant": [
+      32,
+      32
+    ],
+    "tile": [
+      64,
+      64
+    ],
+    "layout": "four quadrants, one per landmark, in LANDMARKS order",
+    "unique_rules": 3296,
+    "duplicate_cells": 800,
+    "windows": [
+      {
+        "birth_start": 7,
+        "survival_start": 0,
+        "size": 32
+      },
+      {
+        "birth_start": 104,
+        "survival_start": 0,
+        "size": 32
+      },
+      {
+        "birth_start": 0,
+        "survival_start": 0,
+        "size": 32
+      },
+      {
+        "birth_start": 360,
+        "survival_start": 359,
+        "size": 32
+      }
+    ],
+    "landmarks": [
+      {
+        "name": "Life",
+        "rule": "B3/S23",
+        "claim": "Class IV at this scale: activity stays well below the rebuild-every-step rules, damage survives, and the field keeps structure rather than boiling.",
+        "source": "Gardner, Scientific American 223(4) (1970); Wolfram (1984).",
+        "expectations": {
+          "activity": [
+            0.01,
+            0.45
+          ],
+          "spatial_entropy": [
+            0.1,
+            0.9
+          ],
+          "damage_died_rate": [
+            0.0,
+            0.99
+          ]
+        }
+      },
+      {
+        "name": "HighLife",
+        "rule": "B36/S23",
+        "claim": "Life plus the replicator: activity and entropy in Life's band, with damage surviving every seed sampled here.",
+        "source": "Bell, 'HighLife', as summarised in Eppstein's cellular-automaton notes.",
+        "expectations": {
+          "activity": [
+            0.01,
+            0.45
+          ],
+          "damage_died_rate": [
+            0.0,
+            0.99
+          ]
+        }
+      },
+      {
+        "name": "Seeds",
+        "rule": "B2/S",
+        "claim": "Explosive: no cell survives, so the grid is rebuilt from scratch every step.",
+        "source": "Bays, 'Seeds' (1993), as catalogued on LifeWiki.",
+        "expectations": {
+          "activity": [
+            0.25,
+            1.0
+          ],
+          "spatial_entropy": [
+            0.5,
+            1.0
+          ]
+        }
+      },
+      {
+        "name": "Day & Night",
+        "rule": "B3678/S34678",
+        "claim": "Self-complementary and quiet on this torus: soups rarely settle into a single still life, but activity stays low because large ordered regions persist.",
+        "source": "Bell, 'Day & Night' (1997), LifeWiki.",
+        "expectations": {
+          "activity": [
+            0.01,
+            0.45
+          ],
+          "damage_died_rate": [
+            0.0,
+            0.99
+          ]
+        }
+      }
+    ],
+    "landmark_cells": {
+      "Life": {
+        "x": 8,
+        "y": 8
+      },
+      "HighLife": {
+        "x": 40,
+        "y": 8
+      },
+      "Seeds": {
+        "x": 7,
+        "y": 32
+      },
+      "Day & Night": {
+        "x": 40,
+        "y": 40
+      }
+    }
+  },
+  "seeds": [
+    11,
+    23,
+    37,
+    53,
+    71,
+    97
+  ],
+  "budgets": {
+    "lattice": [
+      64,
+      64
+    ],
+    "warm": 24,
+    "max_steps": 300,
+    "period_cap": 300,
+    "cadence": 8,
+    "frames": 8,
+    "density": 30
+  },
+  "channels": [
+    "activity:mean",
+    "activity:low",
+    "activity:high",
+    "spatial_entropy:mean",
+    "spatial_entropy:low",
+    "spatial_entropy:high",
+    "temporal_entropy:mean",
+    "temporal_entropy:low",
+    "temporal_entropy:high",
+    "compression:mean",
+    "compression:low",
+    "compression:high",
+    "damage_rate:mean",
+    "damage_rate:low",
+    "damage_rate:high",
+    "damage_died_rate:mean",
+    "damage_died_rate:low",
+    "damage_died_rate:high",
+    "population:mean",
+    "population:low",
+    "population:high",
+    "transient:mean",
+    "transient:low",
+    "transient:high",
+    "period:mean",
+    "period:low",
+    "period:high",
+    "lambda:mean",
+    "lambda:low",
+    "lambda:high",
+    "undecided_mass:mean",
+    "undecided_mass:low",
+    "undecided_mass:high",
+    "resolved_mass:mean",
+    "resolved_mass:low",
+    "resolved_mass:high"
+  ],
+  "classes": [
+    "static",
+    "periodic",
+    "ordered",
+    "complex",
+    "chaotic",
+    "undecided"
+  ],
+  "class_counts": {
+    "static": 184,
+    "periodic": 356,
+    "ordered": 638,
+    "complex": 162,
+    "chaotic": 150,
+    "undecided": 2606
+  },
+  "products": [
+    {
+      "path": "metrics.bin",
+      "sha256": "679db7db28755cb8e12c8b7c2886e85cbd98021a6692d6c99c288634950b6915",
+      "bytes": 589848
+    },
+    {
+      "path": "classes.bin",
+      "sha256": "505d32517a64a014f7a1c710d4cf2c58b074755fb2bcd24fc06e5e905cc56686",
+      "bytes": 8216
+    },
+    {
+      "path": "rules.json",
+      "sha256": "e50d7d9facbb5bb3b99066d00e6408ae81225d82e402fba8cac831db04033723",
+      "bytes": 338848
+    }
+  ],
+  "header_bytes": 24
+}

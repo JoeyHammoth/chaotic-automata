@@ -29,6 +29,24 @@ deliverable, not an apology.
 - **Metric disagreement is the honest headline.** Where classifiers disagree, the map says so rather
   than choosing a winner.
 
+## The 64×64 sample sweep
+
+- **Small tori change the science.** On a 64×64 torus with 30% soup the landmarks measure
+  0.07/0.07/0.42/0.03 activity
+  (Life/HighLife/Seeds/Day & Night) and damage survives in most seeds
+  (0.17/0.00/0.00/0.67 died). Those are finite-size
+  numbers: the 512×512 sweep uses larger budgets and its values must not be read off the sample.
+- **The sample is 3,296 unique rules, not 4,096.** The four landmark quadrants
+  overlap, so 800 cells of the 64×64 tile repeat a rule measured elsewhere.
+  The manifest states both numbers.
+- **Budgets are modest on purpose.** 300 observed steps and a
+  300-step period cap leave 2,606 of
+  4,096 cells `undecided`. That is the honest answer to "did this run
+  resolve?", not a claim that nothing is known about the rule.
+- **Four metrics are deferred, not approximated**: localised-structure score (needs M2 particles),
+  Lyapunov profile (design stretch), damage front speeds (only the growth rate is measured) and
+  embeddings (GPU job). `docs/methods.md` says so beside the metric table.
+
 ## Coverage and approximation
 
 - **No rollouts are shipped.** Thumbnails are simulated on demand; the atlas is a map of measured

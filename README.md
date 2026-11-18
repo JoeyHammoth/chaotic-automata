@@ -11,7 +11,7 @@ computation either survives or dies.
 
 | | |
 |---|---|
-| **Status** | Vertical slice running: the packed engine steps B3/S23 and the browser shell runs it from the URL. The atlas itself is not built. |
+| **Status** | Engine, differential gate and a first data product: a 64×64 sample sweep with bootstrap intervals, a golden file and a manifest. The atlas UI itself is not built. |
 | **Design** | [`source/Computation_Atlas_v2_Design_Doc.md`](source/Computation_Atlas_v2_Design_Doc.md) — draft 2, sections 0–12 plus appendices |
 | **Deliverable** | Static, serverless web app on GitHub Pages, plus a reproducible offline data pipeline |
 | **Audience** | Admissions committees, research-software hiring managers, computational physics / ML-for-science teams |

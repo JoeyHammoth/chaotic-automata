@@ -35,4 +35,5 @@ testpaths = ["tests"]
 addopts = "-q"
 markers = [
   "differential: compares the Rust engine against the Python reference; needs the ca-diff binary",
+  "sweep: runs the metric sweep; needs the ca-sweep binary",
 ]
