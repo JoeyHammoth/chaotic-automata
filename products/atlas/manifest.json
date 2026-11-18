@@ -2,8 +2,8 @@
   "schema": 1,
   "kind": "layers",
   "pipeline_version": "0.1.0",
-  "git_sha": "9a5f1b37ce78aa3e45c5526d946c28f02738205d",
-  "profile": "atlas",
+  "git_sha": "e0ad02649bc304a232c11479dcd4f076bb14fc56",
+  "profile": "atlas-full",
   "toolchain": {
     "python": "3.14.7",
     "sweep_binary": "ca-sweep.exe"
@@ -51,16 +51,21 @@
     ]
   },
   "seeds": [
-    11
+    11,
+    23,
+    37,
+    53,
+    71,
+    97
   ],
   "budgets": {
     "lattice": [
       64,
       64
     ],
-    "warm": 4,
-    "max_steps": 40,
-    "period_cap": 40,
+    "warm": 24,
+    "max_steps": 300,
+    "period_cap": 300,
     "cadence": 8,
     "frames": 8,
     "density": 30
@@ -69,7 +74,7 @@
     {
       "metric": "activity",
       "path": "activity.bin",
-      "sha256": "8cd6b7b4f66389fc665997216d82eff1874d3f892b52e39ceea153f0bc0ec5b2",
+      "sha256": "c4c30fe61b25190708851e05797eec6b70ecd749a9a4e07a85f8ff648253cb7f",
       "bytes": 524312,
       "min": 0.0,
       "max": 1.0
@@ -77,31 +82,31 @@
     {
       "metric": "spatial_entropy",
       "path": "spatial_entropy.bin",
-      "sha256": "c826f4ef58e283a7b9c8c931a71c2bf1bab01859b0a2a497c8aa1587a87b1e7e",
+      "sha256": "c09fb055799f5779fce4e9149fed3dab4d10b523ca7b6197d358952abcd9fc05",
       "bytes": 524312,
       "min": 0.0,
-      "max": 0.998414
+      "max": 0.998816
     },
     {
       "metric": "compression",
       "path": "compression.bin",
-      "sha256": "b8e584da49731a816194de14651274dc1a018f852ae22fed2829b3aafb20d994",
+      "sha256": "4d34cf5eb082adf7d72085e7a172ef972d423111a26f132eb4f8d6d0fa214cda",
       "bytes": 524312,
-      "min": 0.015625,
+      "min": 0.018392,
       "max": 1.009766
     },
     {
       "metric": "damage_rate",
       "path": "damage_rate.bin",
-      "sha256": "474297e85e30a01c4e9af3ed8ee6a2b16fa411b01c5996dcd2e927b2ee6b6767",
+      "sha256": "01553defdcc8f56df850b6689c8794f7f910faae67c866c524c8c9cc2db2afaa",
       "bytes": 524312,
-      "min": -0.6,
-      "max": 38.8
+      "min": -0.4222223333333333,
+      "max": 36.73333333333333
     }
   ],
   "classes": {
     "path": "classes.bin",
-    "sha256": "285495158b1d19d98a283af305ca0490242dc6de21c5498cf900320f4c00eb51",
+    "sha256": "01ff6fd74c99d49b2520c92e5bb81c9da48ff86e92ebc1b240a316fca00ff9f4",
     "bytes": 786456,
     "channels": [
       "class",
@@ -117,12 +122,12 @@
       "undecided"
     ],
     "counts": {
-      "static": 4918,
-      "periodic": 27095,
-      "ordered": 5675,
-      "complex": 10071,
-      "chaotic": 4420,
-      "undecided": 209965
+      "static": 17204,
+      "periodic": 23863,
+      "ordered": 5125,
+      "complex": 10557,
+      "chaotic": 6676,
+      "undecided": 198719
     }
   },
   "header_bytes": 24,
@@ -232,7 +237,7 @@
     "size": 128,
     "levels": 3,
     "path": "tiles",
-    "version": "e6bdadbe270b",
+    "version": "fa0a3d8512c5",
     "colourings": [
       "class",
       "activity",

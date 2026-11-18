@@ -11,7 +11,7 @@ computation either survives or dies.
 
 | | |
 |---|---|
-| **Status** | The atlas is live: a 512×512 map of rule space with class and metric colourings, hatching for undecided rules, a disagreement layer, landmark labels and click-to-run. Data comes from the pipeline's preview sweep. |
+| **Status** | The atlas is live: a 512×512 map of rule space with class and metric colourings, hatching for undecided rules, a disagreement layer, landmark labels and click-to-run. Data comes from the full sweep: 24 warm steps, 300 observed steps, a 300-step period cap and six seeds per rule, the same budgets as the 64x64 sample; 75.8% of rules stay undecided there and the map hatches them. |
 | **Design** | [`source/Computation_Atlas_v2_Design_Doc.md`](source/Computation_Atlas_v2_Design_Doc.md) — draft 2, sections 0–12 plus appendices |
 | **Deliverable** | Static, serverless web app on GitHub Pages, plus a reproducible offline data pipeline |
 | **Audience** | Admissions committees, research-software hiring managers, computational physics / ML-for-science teams |
