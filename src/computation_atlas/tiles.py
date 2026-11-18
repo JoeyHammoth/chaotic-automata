@@ -240,7 +240,9 @@ def write_tiles(
 ) -> dict[str, object]:
     """Write ``tiles/<colouring>/<level>/<x>_<y>.png``; return the manifest blocks describing them.
 
-    The caller owns the manifest file; this function only renders and hashes.
+    The version hashes the pixels, not the encoded files: zlib output differs between
+    platforms and zlib versions, so a byte hash would make one picture look like two. The
+    caller owns the manifest; this function renders, writes and reports.
     """
     product_dir = Path(product_dir)
     width, height = manifest["space"]["tile"]
@@ -257,7 +259,7 @@ def write_tiles(
     if tiles_dir.exists():
         shutil.rmtree(tiles_dir)
 
-    written: dict[str, bytes] = {}
+    rendered: dict[str, bytes] = {}
     for metric in COLOURINGS:
         if metric == "class":
             values, low, high = [0.0] * (width * height), 0.0, 1.0
@@ -285,18 +287,16 @@ def write_tiles(
                 for tx in range(side):
                     tile = _crop(pixels, level_width, tx * tile_px, ty * tile_px, tile_px)
                     relative = f"tiles/{metric}/{level}/{tx}_{ty}.png"
-                    written[relative] = encode_png(tile, tile_px, tile_px)
-
-    for relative, data in written.items():
-        path = product_dir / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
+                    rendered[relative] = tile
+                    target = product_dir / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(encode_png(tile, tile_px, tile_px))
 
     digest = hashlib.sha256()
-    for relative in sorted(written):
+    for relative in sorted(rendered):
         digest.update(relative.encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(written[relative])
+        digest.update(b"/")
+        digest.update(rendered[relative])
 
     available = {"class", "disagreement", *layers}
     return {
@@ -307,8 +307,7 @@ def write_tiles(
             "path": "tiles",
             "version": digest.hexdigest()[:12],
             "colourings": [metric for metric in COLOURINGS if metric in available],
-            "count": len(written),
-            "bytes": sum(len(data) for data in written.values()),
+            "count": len(rendered),
         },
     }
 
@@ -342,9 +341,8 @@ def main(argv: list[str] | None = None) -> int:
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     tiles = manifest["tiles"]
     print(
-        f"wrote {tiles['count']} tiles ({tiles['bytes'] / 1024:.0f} KB) "
-        f"over {tiles['levels']} levels for {len(tiles['colourings'])} colourings; "
-        f"version {tiles['version']}"
+        f"wrote {tiles['count']} tiles over {tiles['levels']} levels "
+        f"for {len(tiles['colourings'])} colourings; version {tiles['version']}"
     )
     return 0
 

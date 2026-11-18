@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 import struct
@@ -125,7 +124,6 @@ def test_write_tiles_covers_every_level_and_colouring(tmp_path: Path) -> None:
         metric for metric in COLOURINGS if metric in {"class", "activity", "disagreement"}
     ]
     assert tiles["count"] == 3 * (1 + 4)
-    assert tiles["bytes"] == sum(path.stat().st_size for path in (root / "tiles").rglob("*.png"))
     assert len(str(tiles["version"])) == 12
 
     class_root = root / "tiles" / "class"
@@ -179,8 +177,12 @@ def test_committed_tiles_match_the_committed_layers(tmp_path: Path) -> None:
     assert rebuilt["tiles"] == manifest["tiles"]
     assert rebuilt["palette"] == manifest["palette"]
 
-    for path in sorted(committed.joinpath("tiles").rglob("*.png")):
+    # Pixels are the contract; compressed bytes are not, since zlib output differs by platform.
+    # This is exactly the drift the test is meant to survive.
+    paths = sorted(committed.joinpath("tiles").rglob("*.png"))
+    assert len(paths) == manifest["tiles"]["count"]
+    for path in paths:
         relative = path.relative_to(committed)
-        fresh = (copy / relative).read_bytes()
-        assert fresh == path.read_bytes(), f"{relative} is stale; rerun computation_atlas.tiles"
-        assert hashlib.sha256(fresh).hexdigest() == hashlib.sha256(path.read_bytes()).hexdigest()
+        rebuilt_pixels = decode_png((copy / relative).read_bytes())
+        committed_pixels = decode_png(path.read_bytes())
+        assert rebuilt_pixels == committed_pixels, f"{relative} is stale; rerun tiles"

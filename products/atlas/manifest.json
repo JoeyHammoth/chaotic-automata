@@ -232,7 +232,7 @@
     "size": 128,
     "levels": 3,
     "path": "tiles",
-    "version": "5576130499c6",
+    "version": "e6bdadbe270b",
     "colourings": [
       "class",
       "activity",
@@ -241,7 +241,6 @@
       "damage_rate",
       "disagreement"
     ],
-    "count": 126,
-    "bytes": 861641
+    "count": 126
   }
 }

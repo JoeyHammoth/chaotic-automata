@@ -119,7 +119,8 @@ The page therefore fetches the tiles for the window it is showing — 17 of them
 zoomed in, a coarse parent first — instead of 2.8 MB of layers, and switching colouring fetches only
 that colouring's tiles. The palette is written into the manifest by the pipeline and read back by the
 page, so a legend cannot drift from the pixels it labels. `tests/test_tiles.py` rebuilds the committed
-pyramid from the committed layers and fails if a single PNG differs, and a sweep writes its tiles in
+pyramid from the committed layers and fails if a single pixel differs (the version hashes pixels,
+not deflate output), and a sweep writes its tiles in
 the same run as its layers.
 
 ### Illumination
