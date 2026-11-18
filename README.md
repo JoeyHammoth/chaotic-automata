@@ -129,6 +129,9 @@ It writes plots into `Grids/`, `Histograms/`, `Line_Plots/` and `Log_Plots/`.
 | [`docs/research/design-doc-review.md`](docs/research/design-doc-review.md) | Which claims check out, and what is missing |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Branch, commit, issue and PR workflow |
 | [`AGENTS.md`](AGENTS.md) | Instructions for coding agents |
+| [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Expected behaviour, and the private reporting route |
+| [`SECURITY.md`](SECURITY.md) | Supported versions and how to report a vulnerability |
+| [`CITATION.cff`](CITATION.cff) | How to cite the software and its data products |
 
 ## Primary references
 
@@ -149,5 +152,7 @@ It writes plots into `Grids/`, `Histograms/`, `Line_Plots/` and `Log_Plots/`.
 
 ## License
 
-Not yet chosen — see the license issue in the tracker. Until a licence is added, all rights are
-reserved.
+MIT — see [`LICENSE`](LICENSE).
+
+The licence covers the source, the data products under `products/` and the figures generated from
+them, so a figure can be reused with its reproduce link and no further permission.

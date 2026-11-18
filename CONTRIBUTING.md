@@ -23,6 +23,13 @@
 - [ ] Reproduce information (rule, seed, version) is emitted by anything that produces a figure
 - [ ] `docs/` updated when behaviour or scope changes
 
+## Code of conduct and security
+
+Participation is covered by [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md); reports go through a private
+route, never a public issue. A suspected vulnerability follows [`SECURITY.md`](SECURITY.md) — GitHub's
+private advisory reporting — and is not filed as a bug. A **wrong result** is neither of those: it is
+an issue with the claim, the primary source and the correction (below).
+
 ## Labels and triage
 
 Triage roles, module labels and priorities are defined in `docs/agents/triage-labels.md`. Apply one

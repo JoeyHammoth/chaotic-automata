@@ -1,0 +1,55 @@
+# Dependabot version updates. Security updates are enabled in repository settings and do not depend
+# on this file; what this adds is routine, reviewable bumps for every ecosystem in the repo.
+#
+# Each ecosystem groups its updates into one pull request per week: the dependency surface here is
+# small, and four separate PRs a week for transitive bumps is noise nobody reviews properly.
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      rust-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      python-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/site"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      site-dependencies:
+        patterns: ["*"]
+    # Major bumps to the site toolchain are a migration, not a chore: they need a decision and a
+    # read of the release notes, so they arrive by hand rather than as a weekly PR.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]

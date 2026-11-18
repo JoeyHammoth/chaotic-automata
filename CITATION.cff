@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software or its data products, please cite it using this metadata."
+title: "Computation Atlas"
+abstract: >-
+  A static, client-side map of cellular-automaton rule space, paired with an offline pipeline that
+  measures every life-like rule and reports budget-capped outcomes as undecided rather than
+  guessing. Every product records its rule, seed, budgets and version hash.
+type: software
+authors:
+  - family-names: "Putradi"
+    given-names: "James Nikolas"
+    alias: "JoeyHammoth"
+repository-code: "https://github.com/JoeyHammoth/chaotic-automata"
+url: "https://joeyhammoth.github.io/chaotic-automata/"
+license: MIT
+version: 0.1.0
+date-released: "2026-11-19"
+keywords:
+  - cellular automata
+  - rule space
+  - life-like automata
+  - computational mechanics
+  - reproducible research

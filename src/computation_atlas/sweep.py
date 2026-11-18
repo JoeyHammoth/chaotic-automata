@@ -1,7 +1,7 @@
 """The sample sweep: run ``ca-sweep`` over the quadrants, aggregate, write products and a manifest.
 
-Two profiles exist so the same code can pin a golden file in CI (small, seconds) and produce the
-real sample product (larger, minutes). Nothing here decides a budget: the profile does, and the
+Profiles exist so the same code can pin a golden file in CI (small, seconds), produce the sample
+product (minutes) and the full atlas (hours). Nothing here decides a budget: the profile does, and
 profile is written into the manifest so "undecided" is always relative to stated caps.
 """
 
@@ -73,6 +73,14 @@ class Profile:
         }
 
 
+# One budget set for every product that claims a measured number, so a cell in the map and a cell
+# in the sample product differ in extent, never in what was measured. Six seeds is the point below
+# which a bootstrap interval is a statement about the seeds, not about the rule.
+FULL_WARM = 24
+FULL_STEPS = 300
+FULL_PERIOD_CAP = 300
+FULL_SEEDS = (11, 23, 37, 53, 71, 97)
+
 PROFILES: dict[str, Profile] = {
     # Small enough for CI on every pull request: pins the pipeline, not the science.
     "golden": Profile(
@@ -96,14 +104,28 @@ PROFILES: dict[str, Profile] = {
         layers=("activity", "spatial_entropy", "compression", "damage_rate"),
         threads=16,
     ),
+    # The full atlas: every rule of the 512x512 chart at the sample's budgets. Same measurement,
+    # all of it: this is the profile the long, resumable sweep runs (see sharded.py).
+    "atlas-full": Profile(
+        name="atlas-full",
+        quadrant=512,
+        warm=FULL_WARM,
+        max_steps=FULL_STEPS,
+        period_cap=FULL_PERIOD_CAP,
+        seeds=FULL_SEEDS,
+        offset=0,
+        layout="chart",
+        layers=("activity", "spatial_entropy", "compression", "damage_rate"),
+        threads=16,
+    ),
     # The sample product: four 32x32 quadrants, one around each landmark.
     "sample": Profile(
         name="sample",
         quadrant=32,
-        warm=24,
-        max_steps=300,
-        period_cap=300,
-        seeds=(11, 23, 37, 53, 71, 97),
+        warm=FULL_WARM,
+        max_steps=FULL_STEPS,
+        period_cap=FULL_PERIOD_CAP,
+        seeds=FULL_SEEDS,
     ),
 }
 
