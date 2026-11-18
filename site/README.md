@@ -49,3 +49,13 @@ honest (ADR 0002, ADR 0004).
 `?rule=B3/S23&seed=1` (optional `size`, a multiple of 64 up to 512). The page canonicalises the rule
 in the URL on load, so a link always names exactly one rule. Malformed input produces a visible
 message rather than a blank canvas.
+
+## The atlas
+
+`src/atlas/` is the map: `lib/chart.ts` owns the Gray-coded geometry, `lib/product.ts` reads the `CATL`
+files, `lib/camera.ts` the pan/zoom maths, `lib/palette.ts` the colourings and hatching,
+`lib/render.ts` paints one layer and blits the visible window, and `lib/png.ts` writes the reproduce
+link into exported PNGs. `src/main.ts` wires them to the URL.
+
+`npm run dev` and `npm run build` both run `copy:products` first, copying `../products/` into
+`public/products/`; the site never transforms a product, so a figure and the committed bytes agree.

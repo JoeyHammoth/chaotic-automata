@@ -71,6 +71,24 @@ class RuleSummary:
         return CLASS_CODES[self.class_name]
 
 
+def indicator_disagreement(
+    *, spatial_entropy: float, damage_died_rate: float, period: float | None
+) -> float:
+    """Fraction of indicator pairs that disagree about the class (design §6.2, disagreement layer).
+
+    Three cheap, genuinely independent readings: damage survival, entropy level, and whether the run
+    resolved to a short period. The number is a *disagreement rate*, not a confidence: 0 means they
+    agree, 1 means every pair differs.
+    """
+    guesses = (
+        "ordered" if damage_died_rate >= 0.5 else "complex",
+        "chaotic" if spatial_entropy >= 0.5 else "ordered",
+        "periodic" if period is not None and period <= 8 else "complex",
+    )
+    pairs = ((0, 1), (0, 2), (1, 2))
+    return sum(guesses[a] != guesses[b] for a, b in pairs) / len(pairs)
+
+
 def classify(
     *,
     activity: float,

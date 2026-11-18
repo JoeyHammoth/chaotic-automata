@@ -196,6 +196,15 @@ def sample_layout(quadrant: int = 32, offset: int = 8) -> list[Cell]:
     return cells
 
 
+def chart_layout(size: int = CHART) -> list[Cell]:
+    """The whole chart as one square tile, row-major: x is birth, y is survival."""
+    cells: list[Cell] = []
+    for y in range(size):
+        for x in range(size):
+            cells.append(Cell(x=x, y=y, birth_index=x, survival_index=y))
+    return cells
+
+
 def landmark_cells(quadrant: int = 32, offset: int = 8) -> dict[str, Cell]:
     """Where each landmark sits inside the product tile."""
     windows = sample_windows(quadrant, offset)

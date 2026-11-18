@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev": "npm run copy:products",
     "build": "tsc --noEmit && vite build",
+    "prebuild": "npm run copy:products",
+    "copy:products": "node scripts/copy-products.mjs",
     "build:wasm": "node scripts/build-wasm.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

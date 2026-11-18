@@ -41,5 +41,6 @@ data/tiles/
 
 # Site build artefacts
 site/public/engine.wasm
+site/public/products/
 site/test-results/
 site/playwright-report/

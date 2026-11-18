@@ -13,12 +13,13 @@ from pathlib import Path
 
 MAGIC = b"CATL"
 VERSION = 1
+DTYPE_F16 = 1
 DTYPE_F32 = 2
 DTYPE_U8 = 3
 FLAG_HAS_NAN = 1
 
 HEADER = struct.Struct("<4sHBBIIfI")
-HEADER_BYTES = HEADER.size  # 20
+HEADER_BYTES = HEADER.size  # 24
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,26 @@ def encode_product(
             struct.pack_into("<f", body, offset, float(value))
             offset += 4
     return header + bytes(body)
+
+
+def encode_layer(values: list[float], *, width: int, height: int, scale: float = 1.0) -> bytes:
+    """A single-channel fp16 layer: the atlas ships one file per colouring."""
+    if len(values) != width * height:
+        raise ValueError(f"expected {width * height} values, got {len(values)}")
+    header = HEADER.pack(MAGIC, VERSION, DTYPE_F16, 1, width, height, scale, 0)
+    return header + struct.pack(f"<{len(values)}e", *values)
+
+
+def read_layer(path: str | Path) -> tuple[ProductMeta, list[float]]:
+    data = Path(path).read_bytes()
+    meta = read_header(data)
+    if meta.dtype != DTYPE_F16:
+        raise ValueError(f"read_layer expects fp16, found dtype {meta.dtype}")
+    count = meta.width * meta.height * meta.channels
+    body = data[HEADER_BYTES:]
+    if len(body) != count * 2:
+        raise ValueError(f"expected {count * 2} bytes of samples, found {len(body)}")
+    return meta, list(struct.unpack(f"<{count}e", body))
 
 
 def encode_labels(values: list[int], *, channels: int, width: int, height: int) -> bytes:
