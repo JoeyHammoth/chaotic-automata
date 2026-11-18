@@ -91,7 +91,8 @@ The instruments do not read each other's internals; they compose through rule id
 
 These are issues, not assumptions:
 
-- Which engine stack wins on measured startup and stepping cost (spike, `area:platform`).
+- ~~Which engine stack wins on measured startup and stepping cost~~ — decided: Rust→WASM
+  bit-packed, with a TypeScript `u8` reference floor (ADR 0004).
 - Whether the atlas ships a single colouring per load or streams additional metric layers.
 - How embeddings are shipped without exceeding the page-weight budget (quantisation vs subsample).
 - Whether PR previews are possible on Pages under the current repository settings.
