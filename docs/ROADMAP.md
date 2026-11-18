@@ -6,7 +6,7 @@ are delivery boundaries; the project board is the live queue.
 | Milestone | Modules | Exit criterion |
 |---|---|---|
 | **M0 · Foundations** | platform | Engine stack chosen by measurement; two implementations agree bit-exactly; CI builds and publishes; docs pages live |
-| **M1 · Atlas** | M1 | 512×512 Life-like map loads in < 2.5 s LCP; pan/zoom at 60 fps; disagreement layer shipped; Conway Life and the named landmark rules land where expected |
+| **M1 · Atlas** | M1 | 512×512 Life-like map loads in < 2.5 s LCP; pan/zoom at 60 fps; disagreement layer shipped; Conway Life and the named landmark rules measure inside their expected metric ranges, and are reported `undecided` where the run cap binds |
 | **M2 · Inspector** | M2 | Rule 90 matches Pascal mod 2; rule 18 recovers `(0Σ)*`; rule 110 ether/glider decomposition passes golden periods; shuffled-time nulls yield no spurious particles above the stated false-positive rate |
 | **M3 · HashLife Zoom** | M3 | Bit-exact against the naive stepper; Golly-captured golden generations pass; metapixel zoom works; memory gauge and node cap enforced |
 | **M4 · Stress Lab** | M4 | Toom lifetime grows with `L` below threshold and collapses above; Domany–Kinzel boundary and `δ ≈ 0.1595` fit within stated tolerance; noise overlay re-colours the atlas |

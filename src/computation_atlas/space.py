@@ -42,6 +42,12 @@ def canonical_at(birth_index: int, survival_index: int) -> str:
     return rule_at(birth_index, survival_index).canonical()
 
 
+# Metrics only the multi-seed sample can claim. `damage_died_rate` is one damage trial per seed,
+# so at the atlas's single seed it reads 0.0 or 1.0 — a coin flip, not a rate. The sample profile
+# pays for six seeds; the atlas ships `damage_rate` (how much damage was done) instead.
+SAMPLE_ONLY_METRICS: frozenset[str] = frozenset({"damage_died_rate"})
+
+
 @dataclass(frozen=True)
 class Landmark:
     name: str
@@ -50,7 +56,10 @@ class Landmark:
     claim: str
     source: str
     # What the measured metrics must show. Qualitative claims from the literature, not thresholds
-    # fitted after the fact: each is a range the sweep must land inside.
+    # fitted after the fact: each is a range the sweep must land inside. A key in
+    # SAMPLE_ONLY_METRICS is measured by the sample product only. `damage_died_rate`
+    # bounds read as the fraction of seeds where the damage died, so "damage survives" is a
+    # band below a half while "surviving every seed sampled here" is exactly zero.
     expectations: dict[str, tuple[float, float]]
 
     @property
@@ -64,6 +73,15 @@ class Landmark:
     @property
     def rule(self) -> str:
         return LifeLike.from_mask(self.birth_mask | self.survival_mask << 9).canonical()
+
+    @property
+    def atlas_expectations(self) -> dict[str, tuple[float, float]]:
+        """Expectations the atlas budget can measure: everything but the single-seed metrics."""
+        return {
+            metric: bounds
+            for metric, bounds in self.expectations.items()
+            if metric not in SAMPLE_ONLY_METRICS
+        }
 
     def verify(self) -> None:
         actual = canonical_at(self.birth_index, self.survival_index)
@@ -86,7 +104,7 @@ LANDMARKS: tuple[Landmark, ...] = (
         expectations={
             "activity": (0.01, 0.45),
             "spatial_entropy": (0.1, 0.9),
-            "damage_died_rate": (0.0, 0.99),
+            "damage_died_rate": (0.0, 0.5),
         },
     ),
     Landmark(
@@ -98,7 +116,7 @@ LANDMARKS: tuple[Landmark, ...] = (
         source="Bell, 'HighLife', as summarised in Eppstein's cellular-automaton notes.",
         expectations={
             "activity": (0.01, 0.45),
-            "damage_died_rate": (0.0, 0.99),
+            "damage_died_rate": (0.0, 0.0),
         },
     ),
     Landmark(
@@ -121,7 +139,6 @@ LANDMARKS: tuple[Landmark, ...] = (
         source="Bell, 'Day & Night' (1997), LifeWiki.",
         expectations={
             "activity": (0.01, 0.45),
-            "damage_died_rate": (0.0, 0.99),
         },
     ),
 )
