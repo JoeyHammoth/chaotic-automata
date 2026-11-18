@@ -26,6 +26,7 @@ deliverable, not an apology.
   codec is named wherever the number is shown.
 - **Damage-spreading rates can be inflated by chance resynchronisation.** The fraction of runs where
   damage dies is reported alongside the rate.
+- **The performance numbers come from headless Chrome, not a GPU laptop.** The deployed build is measured at 1080p with a 4× CPU throttle and a 4G profile; frame time is script and raster cost in software, so it is evidence about the render path rather than a promise about any particular integrated GPU. The largest-contentful-paint figure describes the header text, because a canvas is not an LCP candidate; the map's own readiness is timed separately.
 - **Metric disagreement is the honest headline.** Where classifiers disagree, the map says so rather
   than choosing a winner.
 
