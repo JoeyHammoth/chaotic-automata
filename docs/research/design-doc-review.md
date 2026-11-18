@@ -46,16 +46,18 @@ for a learned `B3/S23` circuit, and the `S(2..4) = 6, 21, 107` validation values
 - **Lenia growth-function constants.** The formula is standard; the specific `(μ, σ)` chart window and
   `dt` are unstated.
 
-## Structural gap
+## Structural gap (closed in draft 2)
 
-The document's own reading guide promises sections 4–7 (architecture, data, frontend) and 8–12
-(validation, deployment, schedule, risks), plus appendices with code skeletons and references. The file
-is 316 lines and ends at §3.8; sections 4–12 and the appendices are absent. The module inventory also
-promises a ship checklist that depends on those sections (performance budget, tier ladder, CI, deploy).
+The review was written against draft 1, whose reading guide promised sections 4-7 (architecture, data,
+frontend) and 8-12 (validation, deployment, schedule, risks) plus appendices, but which ended at 3.8.
+Draft 2 closes the gap: sections 4-12 and appendices A-D now exist (316 lines became 1463), the header
+status says so, and the internal anchors the earlier text relied on (4.5 runtime tiers, 7.4 guided tour,
+Section 11 cut lines) now resolve.
 
-Consequences for build order: the engine stack, data-product format, site framework and deployment
-mechanics are decided by ADRs and an architecture proposal for now, and a ticket tracks completing the
-document. Nothing in the current backlog depends on an unwritten section.
+Two things did **not** change. The placeholders listed above are still placeholders; draft 2 marks each
+one open and names the milestone that closes it, which is the correct outcome of a verification pass that
+could not source them. And the build-order consequences stand: the engine stack, data-product format,
+site framework and deployment mechanics are decided by the ADRs and by the M0 spike, not by the document.
 
 ## Risks worth pinning early
 
