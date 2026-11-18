@@ -33,3 +33,6 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+  "differential: compares the Rust engine against the Python reference; needs the ca-diff binary",
+]
