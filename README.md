@@ -12,13 +12,13 @@ computation either survives or dies.
 | | |
 |---|---|
 | **Status** | Pre-implementation. Repository foundations, backlog and docs are in place; no app code yet. |
-| **Design** | [`source/Computation_Atlas_v2_Design_Doc.md`](source/Computation_Atlas_v2_Design_Doc.md) — draft 1, sections 0–3 |
+| **Design** | [`source/Computation_Atlas_v2_Design_Doc.md`](source/Computation_Atlas_v2_Design_Doc.md) — draft 2, sections 0–12 plus appendices |
 | **Deliverable** | Static, serverless web app on GitHub Pages, plus a reproducible offline data pipeline |
 | **Audience** | Admissions committees, research-software hiring managers, computational physics / ML-for-science teams |
 
-> The design document promises sections 4–12 (architecture, data, frontend, validation, deployment,
-> schedule, risks). Only sections 0–3.8 exist in the file; the missing sections are tracked in an
-> issue and sketched in [`docs/architecture.md`](docs/architecture.md).
+> The design is complete: architecture, data products, instrument interfaces, frontend, performance
+> budgets, validation targets, deployment, schedule, risks and appendices. [`docs/architecture.md`](docs/architecture.md)
+> is the short summary for day-to-day work; the design document is authoritative.
 
 ## Why it is not a demo
 
@@ -53,12 +53,12 @@ Recommended spine: **M1 + M2 + M3 + M4 + one of M5a/M5b**. M6 and M7 are cut lin
 
 ```text
 source/
-  Computation_Atlas_v2_Design_Doc.md   # the design (sections 0–3.8)
+  Computation_Atlas_v2_Design_Doc.md   # the design (sections 0–12 + appendices)
   python/                              # legacy sandpile lab — heritage (M7), not yet migrated
 src/computation_atlas/                 # offline data pipeline (Python)
 tests/                                 # pipeline tests
 docs/
-  architecture.md                      # proposal for the missing architecture sections
+  architecture.md                      # short architecture summary
   methods.md                           # scientific methods, constants and citations
   limitations.md                       # what this cannot show, and why
   ROADMAP.md                           # milestones, spine and cut lines

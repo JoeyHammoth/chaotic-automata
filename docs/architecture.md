@@ -1,8 +1,7 @@
 # Architecture
 
-**Status: proposal.** The design document's architecture sections (4–7) are unwritten; this file is
-the working sketch that fills the gap until they are written, and it is subordinate to the ADRs in
-`docs/adr/`. Anything here that is still undecided is listed at the bottom rather than assumed.
+**Status: sketch.** The design document's architecture sections (4–7) are written; this file is the
+short working summary, subordinate to that document and to the ADRs in `docs/adr/`. Anything here that is still undecided is listed at the bottom rather than assumed.
 
 ## Shape
 
