@@ -82,6 +82,11 @@ deliverable, not an apology.
   Inspector must show it as a claim until #49 settles whether the description or the detector is the
   part that is wrong.
 
+- **A particle claim needs a null.** Tracks are reported only where the shuffled-time null
+  separates from the real field on the same statistic; rule 36 produces plenty of tracks and no
+  separation, so it gets no particle claim. Periods are searched to 32 rows and are `None` beyond
+  that, which is undecided rather than a period of one.
+
 ## Data and privacy
 
 No accounts, no analytics, no user data. Nothing a visitor does leaves the page.

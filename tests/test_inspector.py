@@ -14,6 +14,7 @@ import pytest
 
 from computation_atlas.inspector import (
     NO_DECOMPOSITION,
+    calibrate,
     chi2_critical,
     claim,
     domain_violations,
@@ -22,11 +23,13 @@ from computation_atlas.inspector import (
     infer_domain,
     inspect,
     local_causal_states,
+    particle_count,
     particles,
     seed_row,
     shuffled,
     spacetime,
     spacetime_from,
+    track,
 )
 
 WIDTH = 128
@@ -165,3 +168,59 @@ def test_a_report_records_the_seed_it_used() -> None:
     assert report.seed == 97
     assert report.width == 64
     assert report.steps == 32
+
+def diagonal(width: int, height: int) -> list[bytes]:
+    field = []
+    for t in range(height):
+        row = bytearray(width)
+        row[t % width] = 1
+        field.append(bytes(row))
+    return field
+
+
+def test_a_glider_reports_its_measured_period() -> None:
+    tracks = track(diagonal(16, 8), min_cells=4).particles
+    assert len(tracks) == 1
+    assert tracks[0].period == (1, 1)
+    assert tracks[0].velocity == pytest.approx(1.0)
+
+
+def test_two_tracks_meeting_record_one_merge() -> None:
+    width, height = 16, 7
+    field = []
+    for t in range(height):
+        row = bytearray(width)
+        if t < 4:
+            row[t % width] = 1
+            row[(8 - t) % width] = 1
+        else:
+            row[4] = 1
+        field.append(bytes(row))
+    events = track(field, min_cells=3).collisions
+    merges = [event for event in events if event.kind == "merge"]
+    assert len(merges) == 1
+    assert merges[0].time == 4
+    assert len(merges[0].inputs) == 2
+    assert len(merges[0].outputs) == 1
+
+
+def test_particle_count_requires_a_period_and_a_lifetime() -> None:
+    field = diagonal(16, 8)
+    assert particle_count(field, min_lifetime=4) == 1
+    assert particle_count(field, min_lifetime=8) == 0
+
+
+def test_calibration_separates_rule_18_from_its_shuffled_null() -> None:
+    report = calibrate(18, width=96, steps=64, seeds=20)
+    assert report.seeds == 20
+    assert report.real_mean > report.null_mean
+    assert report.false_positive_rate == 0.0
+    assert report.passes
+    assert report.state_interval.low <= report.state_interval.mean
+    assert report.state_interval.mean <= report.state_interval.high
+
+
+def test_calibration_reports_no_separation_rather_than_a_pass() -> None:
+    report = calibrate(36, width=96, steps=64, seeds=20)
+    assert not report.separates
+    assert not report.passes
