@@ -138,8 +138,6 @@ jobs:
   a11y:
     name: Accessibility budget (Lighthouse)
     runs-on: ubuntu-latest
-    env:
-      LIGHTHOUSE_VERSION: "13.6.0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -166,6 +164,12 @@ jobs:
         working-directory: site
         run: |
           set -euo pipefail
+          # Lighthouse is a pinned devDependency installed by `npm ci` above, so this job reads one
+          # version from one place. It used to be `npx --yes lighthouse@<version>`, which resolves the
+          # tool's whole dependency tree on every run; that is what failed four times in one day --
+          # once on a withdrawn transitive package, three times in Chrome's launcher -- always before
+          # a score existed (#53). `--no-install` makes a missing binary a loud failure instead.
+          npx --no-install lighthouse --version
           npm run preview -- --port 4173 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
           for _ in $(seq 1 60); do
             curl -sf http://127.0.0.1:4173/ > /dev/null && break
@@ -176,5 +180,9 @@ jobs:
             echo "the preview server never answered on port 4173"
             exit 1
           fi
-          npx --yes "lighthouse@${LIGHTHOUSE_VERSION}" http://127.0.0.1:4173/             --only-categories=accessibility             --chrome-flags="--headless=new --no-sandbox"             --output=json --output-path="$RUNNER_TEMP/a11y.json"             --quiet
+          npx --no-install lighthouse http://127.0.0.1:4173/ \
+            --only-categories=accessibility \
+            --chrome-flags="--headless=new --no-sandbox" \
+            --output=json --output-path="$RUNNER_TEMP/a11y.json" \
+            --quiet
           node scripts/check-a11y.mjs "$RUNNER_TEMP/a11y.json"
