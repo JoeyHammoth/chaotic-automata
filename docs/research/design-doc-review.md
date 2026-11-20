@@ -38,8 +38,9 @@ for a learned `B3/S23` circuit, and the `S(2..4) = 6, 21, 107` validation values
 
 - **Antihydra machine string.** Quoted in §3.6 with no source; must be checked against the bbchallenge
   wiki before use.
-- **Rule 110 ether periods.** The document itself says to verify against Cook (2004) before
-  hard-coding. Still unverified.
+- **Rule 110 ether periods.** Closed: the ether is `00010011011111`, 14 cells by 7 steps, and
+  `tests/test_rule110.py` asserts both against Cook, *Complex Systems* **15** (2004), §3.1. The
+  glider periods in his Figure 5 are still not reproduced, and nothing may quote them as measured.
 - **OTCA metapixel dimensions (2058×2058).** Widely reported; confirm on LifeWiki at import time.
 - **"No known domain decomposition" for Rule 30.** Stated as a recent-literature claim without a
   citation. Needs a source or softer wording.

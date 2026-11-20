@@ -155,8 +155,10 @@ Scope: 1D binary CA of radius 1–2. 2D reconstruction is explicitly out of scop
   separated by walls — not a pattern that holds at one phase across a whole row. Reproduced; the
   measurement is under "As implemented". Sources: Wolfram, *Rev. Mod. Phys.* **55**, 601 (1983);
   Hanson & Crutchfield, *Physica D* **103**, 169 (1997); Cenek, dissertation (2011).
-- Rule 110: ether plus gliders; exact spatial/temporal periods must be taken from Cook (2004) before
-  being hard-coded as golden values. **Not yet verified** — placeholder.
+- Rule 110: the ether is `00010011011111`, 14 cells wide, and returns every 7 steps. Both are
+  asserted against the ring of 14 in `tests/test_rule110.py`, and a random row reaches the ether
+  inside the recorded window. The glider periods in Cook's Figure 5 are **not** reproduced here and
+  must not be quoted as measured. Source: Cook, *Complex Systems* **15** (2004) 1–40, §3.1.
 - Rule 30: labelled "no known domain decomposition". Do not invent one.
 
 ### As implemented

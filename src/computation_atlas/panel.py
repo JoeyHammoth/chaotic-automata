@@ -254,6 +254,15 @@ def build_document(
     }
 
 
+def serialize(document: dict[str, object]) -> str:
+    """The canonical text of a panel document: sorted keys, one-space indent, trailing newline.
+
+    The writer and the staleness check both go through here, so the format lives in one place and a
+    committed product can be compared against a rebuild without either side drifting.
+    """
+    return json.dumps(document, sort_keys=True, indent=1) + "\n"
+
+
 def write_panel(
     out_dir: str | Path,
     rules: tuple[int, ...] = DEFAULT_RULES,
@@ -266,7 +275,7 @@ def write_panel(
     document = build_document(rules, width=width, steps=steps, seed=seed, settle=settle)
     path = Path(out_dir) / "panel.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(document, sort_keys=True, indent=1) + "\n", encoding="utf-8")
+    path.write_text(serialize(document), encoding="utf-8", newline="\n")
     return path
 
 
