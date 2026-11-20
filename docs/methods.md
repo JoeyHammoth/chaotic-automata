@@ -157,6 +157,47 @@ Scope: 1D binary CA of radius 1–2. 2D reconstruction is explicitly out of scop
   being hard-coded as golden values. **Not yet verified** — placeholder.
 - Rule 30: labelled "no known domain decomposition". Do not invent one.
 
+### As implemented
+
+`src/computation_atlas/inspector.py` ships the analytic half only: no UI, no product. Its scope is
+narrower than the list above, and it says so at every entry point.
+
+**Domain inference is a periodic-background finder, not CSSR.** A candidate is a period `p` (up to 8)
+and a pattern whose fixed offsets hold one value in every row of the observed window, after an 8-row
+settle. At least 1/8 of each period must be fixed and at least 1/8 of the window observed. The
+invariant is then re-checked independently by `domain_violations`, which re-reads every fixed cell of
+every observed row; a nonzero count is a bug, not a tolerance. A rule that does not satisfy it
+exactly gets `None`, never a best guess.
+
+Measured on a 128-cell torus over 96 observed rows, from a seeded 50% row (seed 11):
+
+| Rules | Result |
+|---|---|
+| 0, 8, 32, 40, 64, 96, 128, 136, 160, 192 | `(0)*`, coverage 1.0: the field resolves to the quiescent state |
+| 36, 164 | `(0 Sigma Sigma 0)*`, coverage 0.5, zero violations |
+| 18 | `None` |
+| 30 | `None`, and the report says "no known domain decomposition" |
+
+**Rule 18's `(0 Sigma)*` is not reproduced.** The anchor above came from the design document's reading
+of the literature, not from a run. The shape is expressible by this detector, directly: it is the
+period-2 pattern `(0, None)`. Over 256 rows of a 256-cell torus the best always-zero class reaches
+only 0.68 of rows at period 1 and 0.64 at period 2, so no such class holds. The claim therefore
+travels with the code as `Claim.verified is False`, and #49 is the ticket that either recovers the
+domain with a spatial epsilon-machine or corrects the claim.
+
+**Particles need a domain to exist first.** Connected components of an unfiltered field are the
+chaotic sea: rule 30's raw field is one component 256 rows tall. A `Report` therefore reports tracks
+(lifetime and drift) only when it also has a domain to filter with, and reports none otherwise.
+Spatial periods and the collision table are #50.
+
+**The Rule 90 oracle fixes its own geometry.** One cell on a 65-cell torus for 32 steps: cell `d` at
+time `t` is `C(t, (t+d)/2) mod 2` when `t+d` is even, and zero otherwise. A random row would test
+nothing: from 50% soup on a 256-cell torus, rule 90's density reaches zero within 128 steps.
+
+**Local causal states** cluster each cell's past lightcone (depth 2) by the distribution it induces
+over the next row, merging classes with a G-test at `alpha = 0.01`. Cells observed fewer than 8
+times get state `-1` and are counted as `undecided`, never assigned to a state.
+
 ## M3 · HashLife
 
 A level-`k` node covers `2^k × 2^k` cells, stores four children, a population count and a cached

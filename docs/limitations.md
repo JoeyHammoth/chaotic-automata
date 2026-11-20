@@ -77,6 +77,11 @@ deliverable, not an apology.
   dimensions and the Antihydra machine string are flagged in `docs/methods.md` until verified against
   the primary source.
 
+- **Rule 18's domain is a claim, not a measurement.** The design's `(0Σ)*` description is carried as
+  unverified: the shipped periodic-background detector does not recover it from a 256-row run, and the
+  Inspector must show it as a claim until #49 settles whether the description or the detector is the
+  part that is wrong.
+
 ## Data and privacy
 
 No accounts, no analytics, no user data. Nothing a visitor does leaves the page.
