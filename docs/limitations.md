@@ -77,10 +77,10 @@ deliverable, not an apology.
   dimensions and the Antihydra machine string are flagged in `docs/methods.md` until verified against
   the primary source.
 
-- **Rule 18's domain is a claim, not a measurement.** The design's `(0Σ)*` description is carried as
-  unverified: the shipped periodic-background detector does not recover it from a 256-row run, and the
-  Inspector must show it as a claim until #49 settles whether the description or the detector is the
-  part that is wrong.
+- **Rule 18's domain is regional, and the product says so.** `(0Σ)*` is an invariant set of
+  configurations, recovered as `(0Σ)*` and `(Σ0)*` regions separated by walls, not as one phase holding
+  across a row. The global periodic finder still returns `None` for this rule, and that is a property
+  of asking a global question, not a bug: the two-phase view is the one the panel must show.
 
 - **A particle claim needs a null.** Tracks are reported only where the shuffled-time null
   separates from the real field on the same statistic; rule 36 produces plenty of tracks and no

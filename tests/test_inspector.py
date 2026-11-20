@@ -17,10 +17,12 @@ from computation_atlas.inspector import (
     calibrate,
     chi2_critical,
     claim,
+    domain_tiling,
     domain_violations,
     elementary,
     from_number,
     infer_domain,
+    infer_phase_domain,
     inspect,
     local_causal_states,
     particle_count,
@@ -29,6 +31,8 @@ from computation_atlas.inspector import (
     shuffled,
     spacetime,
     spacetime_from,
+    spatial_inference,
+    spatial_machine,
     track,
 )
 
@@ -110,14 +114,19 @@ def test_rule_30_is_refused_a_decomposition() -> None:
     assert report.tracks == ()
 
 
-def test_rule_18_keeps_a_claim_it_has_not_earned() -> None:
+def test_rule_18_domain_is_regions_between_walls() -> None:
     report = inspect(18, width=256, steps=256, seed=SEED)
-    assert report.domain is None, "the design's (0 Sigma)* is not reproduced by this detector"
-    assert report.decomposition == NO_DECOMPOSITION
+    assert report.domain is None, "no single phase holds across the whole row"
+    region = report.region_domain
+    assert region is not None, "the two-phase (0 Sigma)* domain is recovered"
+    assert region.rows > 100
+    assert 0 < region.walls_mean < 16
+    assert region.wall_fraction <= 0.08
+    assert "regions separated by walls" in report.decomposition
     found = claim(18)
     assert found is not None
-    assert found.verified is False
-    assert not report.particles_measured
+    assert found.verified, "the claim is reproduced once it is read as a domain, not a row pattern"
+    assert not report.particles_measured, "tracks still need a filtered field, not just a tiling"
 
 
 def test_shuffling_time_destroys_the_detected_domain() -> None:
@@ -224,3 +233,52 @@ def test_calibration_reports_no_separation_rather_than_a_pass() -> None:
     report = calibrate(36, width=96, steps=64, seeds=20)
     assert not report.separates
     assert not report.passes
+
+
+def test_a_phase_flip_costs_one_wall_and_no_violations() -> None:
+    row = bytes(
+        (0 if i % 2 == 0 else 1) if i < 32 else (0 if i % 2 == 1 else 1) for i in range(64)
+    )
+    tiled = domain_tiling(row)
+    assert tiled.violations == 0
+    assert tiled.coverage == 1.0
+    assert len(tiled.walls) == 2, "one wall where the phase flips, one at the seam"
+    assert 32 in tiled.walls
+
+
+def test_the_tiling_does_not_invent_a_domain_for_rule_30() -> None:
+    rows = spacetime(elementary(30), 128, 128, SEED)[8:]
+    assert infer_phase_domain(rows) is None
+    tilings = [domain_tiling(row) for row in rows]
+    assert all(tiling.violations == 0 for tiling in tilings), "a tiling always exists"
+    assert sum(len(tiling.walls) for tiling in tilings) / len(tilings) > 128 // 8
+
+
+def test_the_two_detectors_agree_on_rule_36() -> None:
+    rows = spacetime(elementary(36), WIDTH, STEPS, SEED)
+    domain = infer_domain(rows)
+    assert domain is not None
+    assert domain.pattern == (0, None, None, 0)
+    region = infer_phase_domain(rows[8:])
+    assert region is not None
+    assert 0 < region.walls_mean <= 8
+
+
+def test_spatial_machine_recovers_a_two_state_cycle_on_an_exact_language() -> None:
+    row = bytes(0 if i % 2 == 0 else 1 for i in range(128))
+    machine = spatial_machine([row], history=4, min_count=16)
+    assert machine.count == 2
+    assert len(machine.forcing) == 1
+    cycle = machine.deterministic_cycle()
+    assert cycle is not None
+    assert len(cycle) == 2
+    assert set(cycle) == {0, 1}
+
+
+def test_state_counts_are_reported_across_seeds() -> None:
+    result = spatial_inference(18, width=128, steps=128, seeds=3, history=4, min_count=32)
+    assert len(result.state_counts) == 3
+    assert result.tiled
+    assert all(count >= 2 for count in result.state_counts)
+    assert result.walls_mean > 0
+    assert result.state_interval.low <= result.state_interval.mean <= result.state_interval.high
