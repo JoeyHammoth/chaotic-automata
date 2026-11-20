@@ -24,9 +24,10 @@ without one is not a result.
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from dataclasses import dataclass
 from statistics import NormalDist
+
+from .metrics import Interval, bootstrap_interval
 
 ELEMENTARY_RULES = 256
 
@@ -209,83 +210,312 @@ def domain_violations(rows: tuple[bytes, ...] | list[bytes], domain: Domain) -> 
 
 @dataclass(frozen=True)
 class Particle:
-    """One connected spacetime component: where it started, where it ended, how fast it drifted."""
+    """A particle track: one blob per row, chained through time, with its measured period.
 
+    ``period`` is ``(time, space)`` when the track's cell pattern repeats exactly after that many
+    rows shifted by that many cells. ``None`` means the pattern was not observed to repeat within
+    ``period_cap``, which is an undecided period, not a period of one.
+    """
+
+    ident: int
     start: int
     end: int
-    start_x: float
-    end_x: float
-    cells: int
+    shapes: tuple[tuple[int, ...], ...]
+    period: tuple[int, int] | None
+    velocity: float
 
     @property
     def lifetime(self) -> int:
         return self.end - self.start
 
     @property
-    def velocity(self) -> float:
-        span = self.lifetime
-        return 0.0 if span == 0 else (self.end_x - self.start_x) / span
+    def cells(self) -> int:
+        return sum(len(shape) for shape in self.shapes)
+
+    @property
+    def start_x(self) -> float:
+        return _mean(self.shapes[0])
+
+    @property
+    def end_x(self) -> float:
+        return _mean(self.shapes[-1])
+
+
+@dataclass(frozen=True)
+class Collision:
+    """Tracks meeting: two or more merge into one, or one splits into two or more."""
+
+    time: int
+    kind: str
+    inputs: tuple[int, ...]
+    outputs: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class TrackSet:
+    particles: tuple[Particle, ...]
+    collisions: tuple[Collision, ...]
+
+
+def _mean(values: tuple[int, ...] | list[int]) -> float:
+    return sum(values) / len(values)
+
+
+def _circular(delta: float, width: int) -> float:
+    while delta > width / 2:
+        delta -= width
+    while delta < -width / 2:
+        delta += width
+    return delta
+
+
+def _runs(row: bytes) -> list[tuple[int, ...]]:
+    runs: list[tuple[int, ...]] = []
+    current: list[int] = []
+    for x, cell in enumerate(row):
+        if cell:
+            current.append(x)
+        elif current:
+            runs.append(tuple(current))
+            current = []
+    if current:
+        runs.append(tuple(current))
+    return runs
+
+
+def _measure_period(
+    shapes: tuple[tuple[int, ...], ...], width: int, cap: int
+) -> tuple[int, int] | None:
+    """Smallest ``(time, space)`` for which the track's cells repeat exactly, or ``None``."""
+    span = len(shapes) - 1
+    for tau in range(1, min(cap, span) + 1):
+        drift: int | None = None
+        comparisons = 0
+        for t in range(span + 1 - tau):
+            before, after = shapes[t], shapes[t + tau]
+            step = round(_circular(_mean(after) - _mean(before), width))
+            if drift is None:
+                drift = step
+            elif drift != step:
+                break
+            if {(x + drift) % width for x in before} != set(after):
+                break
+            comparisons += 1
+        else:
+            if comparisons >= 2 and drift is not None:
+                return (tau, drift)
+    return None
+
+
+def track(
+    field: tuple[bytes, ...] | list[bytes],
+    *,
+    min_cells: int = 4,
+    period_cap: int = 32,
+    max_speed: float = 1.5,
+) -> TrackSet:
+    """Chain per-row blobs through time, then measure periods and collisions.
+
+    Blobs, not connected components: a component merges everything that ever touches, which would
+    erase exactly the collisions the module exists to report.
+    """
+    if not field:
+        raise ValueError("field is empty")
+    width = len(field[0])
+    if any(len(row) != width for row in field):
+        raise ValueError("every row must be the same width")
+    rows = [_runs(row) for row in field]
+
+    next_of: dict[tuple[int, int], tuple[int, int]] = {}
+    prev_of: dict[tuple[int, int], tuple[int, int]] = {}
+    successors: dict[tuple[int, int], list[tuple[int, int]]] = {}
+    predecessors: dict[tuple[int, int], list[tuple[int, int]]] = {}
+    for t in range(len(rows) - 1):
+        gaps: dict[tuple[int, int], float] = {}
+        for i, before in enumerate(rows[t]):
+            for j, after in enumerate(rows[t + 1]):
+                gap = abs(_circular(_mean(after) - _mean(before), width))
+                if gap <= max_speed:
+                    gaps[(i, j)] = gap
+                    successors.setdefault((t, i), []).append((t + 1, j))
+                    predecessors.setdefault((t + 1, j), []).append((t, i))
+        for i, j in sorted(gaps, key=lambda pair: (gaps[pair], pair)):
+            if (t, i) in next_of or (t + 1, j) in prev_of:
+                continue
+            next_of[(t, i)] = (t + 1, j)
+            prev_of[(t + 1, j)] = (t, i)
+
+    chains: list[list[tuple[int, int]]] = []
+    for t in range(len(rows)):
+        for i in range(len(rows[t])):
+            node = (t, i)
+            if node in prev_of:
+                continue
+            chain = [node]
+            while chain[-1] in next_of:
+                chain.append(next_of[chain[-1]])
+            if sum(len(rows[time][index]) for time, index in chain) >= min_cells:
+                chains.append(chain)
+
+    built = []
+    for chain in chains:
+        shapes = tuple(rows[time][index] for time, index in chain)
+        start, end = chain[0][0], chain[-1][0]
+        period = _measure_period(shapes, width, period_cap)
+        if period is not None:
+            velocity = period[1] / period[0]
+        elif end > start:
+            velocity = round(_circular(_mean(shapes[-1]) - _mean(shapes[0]), width)) / (end - start)
+        else:
+            velocity = 0.0
+        built.append((start, _mean(shapes[0]), chain, shapes, period, velocity))
+    built.sort(key=lambda item: (item[0], item[1], item[2]))
+
+    tracks: list[Particle] = []
+    blob_track: dict[tuple[int, int], int] = {}
+    for ident, (start, _, chain, shapes, period, velocity) in enumerate(built):
+        for node in chain:
+            blob_track[node] = ident
+        tracks.append(
+            Particle(
+                ident=ident,
+                start=start,
+                end=start + len(shapes) - 1,
+                shapes=shapes,
+                period=period,
+                velocity=velocity,
+            )
+        )
+
+    collisions: list[Collision] = []
+    for node, sources in predecessors.items():
+        if len(sources) < 2 or node not in blob_track:
+            continue
+        inputs = tuple(sorted({blob_track[source] for source in sources if source in blob_track}))
+        if len(inputs) < 2:
+            continue
+        collisions.append(
+            Collision(time=node[0], kind="merge", inputs=inputs, outputs=(blob_track[node],))
+        )
+    for node, targets in successors.items():
+        if len(targets) < 2 or node not in blob_track:
+            continue
+        if node in predecessors and len(predecessors[node]) >= 2:
+            continue  # the same meeting, already recorded from its outgoing side
+        outputs = tuple(sorted({blob_track[target] for target in targets if target in blob_track}))
+        if len(outputs) < 2:
+            continue
+        collisions.append(
+            Collision(time=node[0], kind="split", inputs=(blob_track[node],), outputs=outputs)
+        )
+    collisions.sort(key=lambda event: (event.time, event.kind, event.inputs, event.outputs))
+    return TrackSet(tuple(tracks), tuple(collisions))
 
 
 def particles(
     field: tuple[bytes, ...] | list[bytes], *, min_cells: int = 4
 ) -> tuple[Particle, ...]:
-    """Connected components over (time, space), eight-connected, wrapping in space."""
-    if not field:
-        raise ValueError("field is empty")
-    width = len(field[0])
-    height = len(field)
-    parent = list(range(width * height))
+    """The tracks alone, for callers that do not need the collision table."""
+    return track(field, min_cells=min_cells).particles
 
-    def find(node: int) -> int:
-        root = node
-        while parent[root] != root:
-            root = parent[root]
-        while parent[node] != root:
-            parent[node], node = root, parent[node]
-        return root
 
-    def union(a: int, b: int) -> None:
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[max(ra, rb)] = min(ra, rb)
+def particle_count(field: tuple[bytes, ...] | list[bytes], *, min_lifetime: int = 8) -> int:
+    """The null-model statistic: long-lived tracks whose period was actually measured."""
+    return sum(
+        1
+        for particle in particles(field)
+        if particle.lifetime >= min_lifetime and particle.period is not None
+    )
 
-    for t, row in enumerate(field):
-        for x, cell in enumerate(row):
-            if not cell:
-                continue
-            node = t * width + x
-            if x + 1 < width and row[x + 1]:
-                union(node, node + 1)
-            if t + 1 < height:
-                below = (t + 1) * width
-                for dx in (-1, 0, 1):
-                    neighbour = (x + dx) % width
-                    if field[t + 1][neighbour]:
-                        union(node, below + neighbour)
 
-    members: dict[int, list[int]] = defaultdict(list)
-    for t, row in enumerate(field):
-        for x, cell in enumerate(row):
-            if cell:
-                members[find(t * width + x)].append(t * width + x)
-    tracks = []
-    for nodes in members.values():
-        if len(nodes) < min_cells:
-            continue
-        times = [node // width for node in nodes]
-        start, end = min(times), max(times)
-        start_xs = [node % width for node in nodes if node // width == start]
-        end_xs = [node % width for node in nodes if node // width == end]
-        start_x = sum(start_xs) / len(start_xs)
-        drift = sum(end_xs) / len(end_xs) - start_x
-        while drift > width / 2:
-            drift -= width
-        while drift < -width / 2:
-            drift += width
-        tracks.append(Particle(start, end, start_x, start_x + drift, len(nodes)))
-    tracks.sort(key=lambda track: (track.start, track.start_x))
-    return tuple(tracks)
+@dataclass(frozen=True)
+class Calibration:
+    """Real spacetimes against shuffled-time nulls on one named statistic, over many seeds.
+
+    The statistic is :func:`particle_count`: tracks that live at least ``min_lifetime`` rows and
+    whose period was actually measured. The false-positive rate is a permutation test on counts --
+    the fraction of null runs whose count reaches the real mean -- because "any track at all" is
+    meaningless on a field with density: shuffled rows still contain blobs. Where the two
+    distributions do not separate, :attr:`passes` is false and the rule has no particle claim,
+    however many tracks it has.
+    """
+
+    seed: int
+    seeds: int
+    min_lifetime: int
+    real: tuple[int, ...]
+    null: tuple[int, ...]
+    false_positive_rate: float
+    alpha: float
+    state_counts: tuple[int, ...]
+    state_interval: Interval
+
+    @property
+    def real_mean(self) -> float:
+        return sum(self.real) / len(self.real)
+
+    @property
+    def null_mean(self) -> float:
+        return sum(self.null) / len(self.null)
+
+    @property
+    def separates(self) -> bool:
+        """True when the real field carries more of the statistic than its nulls do."""
+        return self.real_mean > self.null_mean
+
+    @property
+    def passes(self) -> bool:
+        """True when the nulls reach the real mean no more often than ``alpha`` allows."""
+        return self.separates and self.false_positive_rate <= self.alpha
+
+
+def calibrate(
+    number: int,
+    *,
+    width: int = 128,
+    steps: int = 96,
+    seed: int = 11,
+    seeds: int = 20,
+    min_lifetime: int = 8,
+    alpha: float = 0.05,
+    radius: int = 1,
+) -> Calibration:
+    """Measure the particle statistic on real and shuffled fields, one seed at a time."""
+    if seeds < 1:
+        raise ValueError("seeds must be at least 1")
+    rule = elementary(number) if radius == 1 else from_number(number, radius)
+    real: list[int] = []
+    null: list[int] = []
+    counts: list[int] = []
+    for index in range(seeds):
+        base = seed + index * 7919
+        rows = spacetime(rule, width, steps, base)
+        domain = infer_domain(rows)
+        field = filter_domain(rows, domain) if domain is not None else rows
+        real.append(particle_count(field, min_lifetime=min_lifetime))
+        null_rows = shuffled(rows, base ^ 0x5F5F5F5F)
+        null_domain = infer_domain(null_rows)
+        null_field = filter_domain(null_rows, null_domain) if null_domain is not None else null_rows
+        null.append(particle_count(null_field, min_lifetime=min_lifetime))
+        counts.append(local_causal_states(rows).count)
+    threshold = sum(real) / len(real)
+    if threshold > 0:
+        false_positive_rate = sum(1 for value in null if value >= threshold) / len(null)
+    else:
+        false_positive_rate = sum(1 for value in null if value) / len(null)
+    return Calibration(
+        seed=seed,
+        seeds=seeds,
+        min_lifetime=min_lifetime,
+        real=tuple(real),
+        null=tuple(null),
+        false_positive_rate=false_positive_rate,
+        alpha=alpha,
+        state_counts=tuple(counts),
+        state_interval=bootstrap_interval(
+            [float(value) for value in counts], resamples=200, seed=seed
+        ),
+    )
 
 
 def _g_test(left: list[int], right: list[int]) -> float:
@@ -509,6 +739,7 @@ class Report:
     seed: int
     domain: Domain | None
     tracks: tuple[Particle, ...]
+    collisions: tuple[Collision, ...]
     states: LocalStates
     claim: Claim | None
 
@@ -537,14 +768,15 @@ def inspect(
     rule = elementary(number) if radius == 1 else from_number(number, radius)
     rows = spacetime(rule, width, steps, seed)
     domain = infer_domain(rows, max_period=max_period, settle=settle)
-    tracks = particles(filter_domain(rows, domain)) if domain is not None else ()
+    tracked = track(filter_domain(rows, domain)) if domain is not None else TrackSet((), ())
     return Report(
         number=number,
         width=width,
         steps=steps,
         seed=seed,
         domain=domain,
-        tracks=tracks,
+        tracks=tracked.particles,
+        collisions=tracked.collisions,
         states=local_causal_states(rows),
         claim=claim(number),
     )

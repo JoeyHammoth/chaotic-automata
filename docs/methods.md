@@ -198,6 +198,32 @@ nothing: from 50% soup on a 256-cell torus, rule 90's density reaches zero withi
 over the next row, merging classes with a G-test at `alpha = 0.01`. Cells observed fewer than 8
 times get state `-1` and are counted as `undecided`, never assigned to a state.
 
+**Particles are chained per-row blobs, not connected components.** A component merges everything that
+ever touches, which erases exactly the collisions this module exists to report. Each row's maximal
+runs are linked to the next row by mutual nearest centre within 1.5 cells; a 1:1 link continues a
+track, two or more sources merging into one blob is recorded as a merge, and one blob producing two
+or more continuations is a split. Periods are measured, not assumed: the smallest `(time, space)` for
+which the track's cell set repeats exactly, searched up to 32 rows. No repetition within the cap is
+`period = None` — undecided, never a period of one.
+
+**Null calibration, with the statistic named.** The statistic is `particle_count`: tracks of lifetime
+at least 8 rows whose period was measured. Over 20 seeds, at 96 cells by 64 rows:
+
+| Rule | Real mean | Null mean | Nulls reaching the real mean | Verdict |
+|---|---|---|---|---|
+| 18 | 22.85 | 3.40 | 0 of 20 | separates, passes at `alpha = 0.05` |
+| 30 | 3.95 | 0.95 | 0 of 20 | separates, passes — informational only, rule 30 has no particle claim |
+| 36 | 3.70 | 4.55 | 15 of 20 | **does not separate**, reported as no particle claim |
+
+The false-positive rate is a permutation test on counts. "Any track at all" was tried first and
+rejected: on a field with real density, shuffled rows still contain blobs, so it scored 20 of 20 and
+meant nothing. Rule 36 is the useful negative control — it has a domain and plenty of tracks, and
+still earns no particle claim, which is the behaviour ADR 0003 asks for.
+
+**Complexity-state counts carry a bootstrap interval over seeds** (percentile, 200 resamples, the
+same routine the atlas uses), so a state count is quoted with its spread rather than as a bare
+integer.
+
 ## M3 · HashLife
 
 A level-`k` node covers `2^k × 2^k` cells, stores four children, a population count and a cached
