@@ -6,6 +6,10 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    rollupOptions: {
+      // Two pages: the atlas map and the Inspector panel. Both are static entry points.
+      input: { main: 'index.html', inspector: 'inspector.html' },
+    },
   },
   server: {
     host: '127.0.0.1',
