@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Computation Atlas — Inspector</title>
+    <meta
+      name="description"
+      content="Domains, particles and local causal states for one-dimensional cellular automata. One-dimensional binary rules of radius 1–2 only."
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Inspector</h1>
+        <p class="lede">
+          One rule at a time: the raw spacetime, what its domain does not explain, the local
+          statistical complexity, and a twin replica that differs by a single cell. One-dimensional
+          binary rules of radius 1–2 only — radius 3+ and two-dimensional reconstruction are out of
+          scope, and nothing here pretends otherwise.
+        </p>
+      </header>
+
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <div class="controls">
+        <label for="inspector-rule">Rule</label>
+        <select id="inspector-rule" name="rule"></select>
+        <span class="spacer"></span>
+        <a href="/">Back to the atlas</a>
+      </div>
+
+      <section class="panes" aria-label="Inspector panes">
+        <figure class="pane">
+          <canvas id="pane-raw" role="img" aria-label="Raw spacetime diagram"></canvas>
+          <figcaption id="raw-caption">Raw spacetime.</figcaption>
+        </figure>
+        <figure class="pane">
+          <canvas
+            id="pane-filtered"
+            role="img"
+            aria-label="Domain residue: cells the inferred domain does not explain"
+          ></canvas>
+          <figcaption id="filtered-caption">Domain residue.</figcaption>
+        </figure>
+        <figure class="pane">
+          <canvas id="pane-complexity" role="img" aria-label="Local statistical complexity heatmap"></canvas>
+          <figcaption id="complexity-caption">Local statistical complexity.</figcaption>
+        </figure>
+        <figure class="pane">
+          <canvas id="pane-damage" role="img" aria-label="Twin-replica damage field"></canvas>
+          <figcaption id="damage-caption">Twin replica, one cell flipped.</figcaption>
+        </figure>
+      </section>
+
+      <section class="particles" aria-label="Particles">
+        <h2>Particles</h2>
+        <p class="status" id="track-count" aria-live="polite">Loading…</p>
+        <ul id="track-list" class="track-list" aria-label="Particle tracks"></ul>
+        <div id="track-detail" class="detail" aria-live="polite">
+          Select a particle to see its velocity, period and collision partners.
+        </div>
+      </section>
+
+      <section class="results" aria-label="Known results">
+        <h2>Known results</h2>
+        <div id="claim"></div>
+        <p id="domain-summary" class="status"></p>
+      </section>
+
+      <p class="status" id="status" aria-live="polite">loading the panel…</p>
+    </main>
+
+    <script type="module" src="/src/inspector/main.ts"></script>
+  </body>
+</html>

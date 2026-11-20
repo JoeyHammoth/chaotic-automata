@@ -87,6 +87,10 @@ deliverable, not an apology.
   separation, so it gets no particle claim. Periods are searched to 32 rows and are `None` beyond
   that, which is undecided rather than a period of one.
 
+- **The panel ships three rules, not 256.** `products/inspector/panel.json` covers 18, 30 and 36 at
+  one window; anything else is refused in words. Producing the other 253 is a command, not a
+  feature, and the page states its scope rather than implying the rest have been analysed.
+
 ## Data and privacy
 
 No accounts, no analytics, no user data. Nothing a visitor does leaves the page.

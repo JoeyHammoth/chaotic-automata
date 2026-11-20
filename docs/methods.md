@@ -217,6 +217,16 @@ states and a 2-symbol cycle, which is the check that the inference works when th
 single deterministic domain. Counts are reported per seed rather than once: rule 18 gives
 5,5,5,5,5,5,7,7,5,5 over ten seeds (interval 5.0-5.8), the finite-data spread a single run hides.
 
+**The panel ships a product, not a live inference.** `python -m computation_atlas.panel` writes
+`products/inspector/panel.json` for rules 18, 30 and 36 at 128 x 96 with the seed inside the
+document; the page decodes it and nothing else. Bits travel as base64 of packed rows (low bit first,
+padded per row) and complexities as one byte per cell, both stated in the file's own `encodings`
+block. The fourth pane is the twin-replica difference: the same rule from the same row with one cell
+flipped, differenced row by row. The residue pane is the domain's *unexplained* part — for a periodic
+domain the cells the pattern does not explain, for a region domain the wall columns — and it is
+`null`, with a sentence saying so, when there is no domain: rule 30 shows an empty pane and no
+particle list rather than an invented one.
+
 **Particles need a domain to exist first.** Connected components of an unfiltered field are the
 chaotic sea: rule 30's raw field is one component 256 rows tall. A `Report` therefore reports tracks
 (lifetime and drift) only when it also has a domain to filter with, and reports none otherwise.
