@@ -209,6 +209,343 @@ def domain_violations(rows: tuple[bytes, ...] | list[bytes], domain: Domain) -> 
 
 
 @dataclass(frozen=True)
+class DomainTiling:
+    """A row tiled by ``(0 Sigma)*`` regions of either phase, with the walls between them.
+
+    Phase ``p`` at position ``i`` asserts ``row[i] == 0`` whenever ``i % period == p``; the other
+    positions are free. A wall is a change of phase between neighbouring cells (wrapping around),
+    which is where a particle sits in the domain-plus-kinks picture. Violations are minimised
+    first and walls second: a wall that repairs broken forced cells is worth paying for.
+    """
+
+    phases: tuple[int, ...]
+    walls: tuple[int, ...]
+    violations: int
+    width: int
+    period: int
+
+    @property
+    def forced(self) -> int:
+        return sum(1 for index, phase in enumerate(self.phases) if index % self.period == phase)
+
+    @property
+    def coverage(self) -> float:
+        """Fraction of forced cells that actually hold 0; 1.0 when the tiling has no violations."""
+        if not self.forced:
+            return 0.0
+        return (self.forced - self.violations) / self.forced
+
+    def describe(self) -> str:
+        symbols = ["0"] + ["Sigma"] * (self.period - 1)
+        return f"({', '.join(symbols)})*"
+
+
+def _best_tiling(row: bytes, start: int, period: int) -> tuple[int, int, list[int]]:
+    """``(violations, walls, phases)`` for the best tiling that begins in phase ``start``."""
+    width = len(row)
+    impossible = (1 << 30, 1 << 30, -1)
+    best = [impossible] * period
+    best[start] = (0, 0, -1)
+    history: list[list[tuple[int, int, int]]] = [list(best)]
+    for i in range(1, width):
+        current = [impossible] * period
+        for previous in range(period):
+            violations, walls, _ = best[previous]
+            if violations >= 1 << 30:
+                continue
+            for phase in range(period):
+                broken = 1 if (i % period == phase and row[i] != 0) else 0
+                candidate = (violations + broken, walls + int(phase != previous), previous)
+                if candidate[:2] < current[phase][:2]:
+                    current[phase] = candidate
+        best = current
+        history.append(current)
+    end = min(range(period), key=lambda phase: best[phase][:2])
+    violations, walls = best[end][0], best[end][1]
+    if end != start:
+        walls += 1
+    phases = [0] * width
+    phase = end
+    for i in range(width - 1, 0, -1):
+        phases[i] = phase
+        phase = history[i][phase][2]
+    phases[0] = start
+    return violations, walls, phases
+
+
+def domain_tiling(row: bytes, *, period: int = 2) -> DomainTiling:
+    """Tile one row with ``(0 Sigma)*`` regions of either phase, minimising violations first.
+
+    The two-phase reading is Wolfram's decomposition of a rule-18 configuration into domains in
+    which either all even-numbered or all odd-numbered sites are zero, separated by kinks. A
+    single phase over the whole row is the special case with zero walls.
+    """
+    if not row:
+        raise ValueError("row is empty")
+    if period < 2:
+        raise ValueError("period must be at least 2")
+    violations, _, phases = min(
+        (_best_tiling(row, start, period) for start in range(period)),
+        key=lambda result: (result[0], result[1]),
+    )
+    width = len(row)
+    walls = tuple(i for i in range(width) if phases[i] != phases[(i - 1) % width])
+    return DomainTiling(
+        phases=tuple(phases), walls=walls, violations=violations, width=width, period=period
+    )
+
+
+@dataclass(frozen=True)
+class PhaseDomain:
+    """``(0 Sigma)*`` regions across a window of rows, and the walls that separate them."""
+
+    period: int
+    rows: int
+    width: int
+    walls: tuple[int, ...]
+
+    @property
+    def walls_mean(self) -> float:
+        return sum(self.walls) / len(self.walls)
+
+    @property
+    def wall_fraction(self) -> float:
+        """The worst row's walls as a fraction of its width."""
+        return max(self.walls) / self.width
+
+    def describe(self) -> str:
+        symbols = ["0"] + ["Sigma"] * (self.period - 1)
+        return f"({', '.join(symbols)})* regions separated by walls"
+
+
+def infer_phase_domain(
+    rows: tuple[bytes, ...] | list[bytes],
+    *,
+    period: int = 2,
+    max_wall_fraction: float = 0.125,
+) -> PhaseDomain | None:
+    """Recover a two-phase ``(0 Sigma)*`` domain, or ``None`` when the rows do not tile cleanly.
+
+    Zero violations is not enough on its own: a tiling may wall off everything, which is exactly
+    what rule 30 does at a third of the row. The wall budget is what separates a domain with
+    particles in it from no domain at all. Measured at 256 cells, rules 18, 36 and 164 need
+    1.8-6.3% of the row as walls, while rules 30, 54 and 22 need 26-34%; the default of 1/8 sits
+    in that gap. A rule that fails either test gets ``None``, never a best guess.
+    """
+    if not rows:
+        raise ValueError("rows is empty")
+    if not 0 < max_wall_fraction < 1:
+        raise ValueError("max_wall_fraction must be between 0 and 1")
+    tilings = [domain_tiling(row, period=period) for row in rows]
+    if any(tiling.violations for tiling in tilings):
+        return None
+    walls = tuple(len(tiling.walls) for tiling in tilings)
+    if max(walls) > max_wall_fraction * len(rows[0]):
+        return None
+    return PhaseDomain(period=period, rows=len(rows), width=len(rows[0]), walls=walls)
+
+
+@dataclass(frozen=True)
+class SpatialMachine:
+    """A spatial epsilon-machine: bounded histories merged when their next-symbol laws agree.
+
+    ``emissions[state]`` is ``(zeros, total)``; a *forcing* state emits 0 every time it is
+    observed. ``transitions`` holds ``(state, symbol, next state, weight)``. Histories seen fewer
+    than ``min_count`` times are left undecided (state ``-1``) and never merged into a state.
+    """
+
+    emissions: tuple[tuple[int, int], ...]
+    transitions: tuple[tuple[int, int, int, int], ...]
+    history: int
+    alpha: float
+    min_count: int
+    histories: int
+    undecided: int
+
+    @property
+    def count(self) -> int:
+        return len(self.emissions)
+
+    @property
+    def forcing(self) -> tuple[int, ...]:
+        return tuple(i for i, (zeros, total) in enumerate(self.emissions) if zeros == total)
+
+    def probability_zero(self, state: int) -> float:
+        zeros, total = self.emissions[state]
+        return zeros / total if total else 0.0
+
+    def deterministic_cycle(self, *, limit: int = 16) -> tuple[int, ...] | None:
+        """The symbol cycle the machine runs on when every state has one outgoing move.
+
+        This is the domain read back out of the machine: on an exact ``(0 1)*`` language the
+        shortest cycle is the two symbols that alternate. A state with two outgoing moves makes
+        the machine non-deterministic there, and ``None`` is returned rather than a guess.
+        """
+        outgoing: dict[int, list[tuple[int, int]]] = {}
+        for state, symbol, target, _ in self.transitions:
+            outgoing.setdefault(state, []).append((symbol, target))
+        cycles: list[tuple[int, ...]] = []
+        for start in outgoing:
+            symbols: list[int] = []
+            state = start
+            seen: dict[int, int] = {}
+            while state not in seen and len(symbols) < limit:
+                moves = outgoing.get(state, [])
+                if len(moves) != 1:
+                    break
+                seen[state] = len(symbols)
+                symbol, state = moves[0]
+                symbols.append(symbol)
+            else:
+                if state == start and symbols:
+                    cycles.append(tuple(symbols))
+        return min(cycles, key=len) if cycles else None
+
+
+def spatial_machine(
+    rows: tuple[bytes, ...] | list[bytes],
+    *,
+    history: int = 4,
+    alpha: float = 0.01,
+    min_count: int = 64,
+) -> SpatialMachine:
+    """Infer causal states over spatial strings, CSSR-style and with bounded history length.
+
+    Histories of length ``history`` are built around each row cyclically, counted against the
+    symbol that follows, and merged greedily with a G-test at ``alpha``. This is the design's
+    "simple history-based clustering with a statistical test" route; it is not the full CSSR
+    splitting loop, and the docstring says so rather than the name implying otherwise.
+    """
+    if history < 1:
+        raise ValueError("history must be at least 1")
+    if not rows:
+        raise ValueError("rows is empty")
+    counts: dict[int, list[int]] = {}
+    for row in rows:
+        width = len(row)
+        for i in range(width):
+            key = 0
+            for offset in range(history, 0, -1):
+                key = key << 1 | row[(i - offset) % width]
+            counts.setdefault(key, [0, 0])[row[i]] += 1
+    critical = chi2_critical(1, alpha)
+    assignment: dict[int, int] = {}
+    centres: list[list[int]] = []
+    for key in sorted(counts, key=lambda item: (-sum(counts[item]), item)):
+        seen = counts[key]
+        if sum(seen) < min_count:
+            assignment[key] = -1
+            continue
+        for state, centre in enumerate(centres):
+            if _g_test(seen, centre) <= critical:
+                assignment[key] = state
+                for index, value in enumerate(seen):
+                    centre[index] += value
+                break
+        else:
+            assignment[key] = len(centres)
+            centres.append(list(seen))
+
+    moves: dict[tuple[int, int, int], int] = {}
+    for key, state in assignment.items():
+        if state < 0:
+            continue
+        bits = [(key >> (history - 1 - offset)) & 1 for offset in range(history)]
+        for symbol in (0, 1):
+            following = 0
+            for bit in [*bits[1:], symbol]:
+                following = following << 1 | bit
+            target = assignment.get(following)
+            if target is None or target < 0:
+                continue
+            pair = (state, symbol, target)
+            moves[pair] = moves.get(pair, 0) + sum(counts[key])
+    return SpatialMachine(
+        emissions=tuple((centre[0], sum(centre)) for centre in centres),
+        transitions=tuple(
+            (state, symbol, target, weight)
+            for (state, symbol, target), weight in sorted(moves.items())
+        ),
+        history=history,
+        alpha=alpha,
+        min_count=min_count,
+        histories=len(counts),
+        undecided=sum(1 for state in assignment.values() if state < 0),
+    )
+
+
+@dataclass(frozen=True)
+class SpatialInference:
+    """Domain tiling and machine state counts over independent seeds, one seed at a time.
+
+    ``state_counts`` is reported as a distribution rather than a single number: a causal-state
+    count that moves with the seed is finite-data bias, and quoting one run hides it.
+    """
+
+    number: int
+    width: int
+    steps: int
+    seeds: int
+    history: int
+    alpha: float
+    state_counts: tuple[int, ...]
+    state_interval: Interval
+    walls: tuple[float, ...]
+    violations: tuple[float, ...]
+
+    @property
+    def tiled(self) -> bool:
+        """True when every seed's window tiles with no violation at all."""
+        return all(value == 0 for value in self.violations)
+
+    @property
+    def walls_mean(self) -> float:
+        return sum(self.walls) / len(self.walls)
+
+
+def spatial_inference(
+    number: int,
+    *,
+    width: int = 256,
+    steps: int = 256,
+    seed: int = 11,
+    seeds: int = 10,
+    history: int = 4,
+    alpha: float = 0.01,
+    min_count: int = 64,
+    radius: int = 1,
+    settle: int = 8,
+) -> SpatialInference:
+    """Run the tiling and the epsilon-machine on ``seeds`` independent runs of one rule."""
+    if seeds < 1:
+        raise ValueError("seeds must be at least 1")
+    rule = elementary(number) if radius == 1 else from_number(number, radius)
+    counts: list[int] = []
+    walls: list[float] = []
+    violations: list[float] = []
+    for index in range(seeds):
+        rows = spacetime(rule, width, steps, seed + index * 7919)[settle:]
+        tilings = [domain_tiling(row) for row in rows]
+        walls.append(sum(len(tiling.walls) for tiling in tilings) / len(tilings))
+        violations.append(sum(tiling.violations for tiling in tilings) / len(tilings))
+        machine = spatial_machine(rows, history=history, alpha=alpha, min_count=min_count)
+        counts.append(machine.count)
+    return SpatialInference(
+        number=number,
+        width=width,
+        steps=steps,
+        seeds=seeds,
+        history=history,
+        alpha=alpha,
+        state_counts=tuple(counts),
+        state_interval=bootstrap_interval(
+            [float(value) for value in counts], resamples=200, seed=seed
+        ),
+        walls=tuple(walls),
+        violations=tuple(violations),
+    )
+
+@dataclass(frozen=True)
 class Particle:
     """A particle track: one blob per row, chained through time, with its measured period.
 
@@ -687,9 +1024,9 @@ class Claim:
 
 CLAIMS: dict[int, Claim] = {
     18: Claim(
-        text="(0 Sigma)* domain",
-        source="design doc 3.2, after Hanson & Crutchfield",
-        verified=False,
+        text="(0 Sigma)* domains separated by walls",
+        source="Wolfram (1983); Hanson & Crutchfield (1997); Cenek (2011)",
+        verified=True,
     ),
     110: Claim(
         text="ether plus gliders",
@@ -742,6 +1079,7 @@ class Report:
     collisions: tuple[Collision, ...]
     states: LocalStates
     claim: Claim | None
+    region_domain: PhaseDomain | None
 
     @property
     def particles_measured(self) -> bool:
@@ -750,9 +1088,11 @@ class Report:
 
     @property
     def decomposition(self) -> str:
-        if self.domain is None:
-            return NO_DECOMPOSITION
-        return self.domain.describe()
+        if self.domain is not None:
+            return self.domain.describe()
+        if self.region_domain is not None:
+            return self.region_domain.describe()
+        return NO_DECOMPOSITION
 
 
 def inspect(
@@ -769,6 +1109,7 @@ def inspect(
     rows = spacetime(rule, width, steps, seed)
     domain = infer_domain(rows, max_period=max_period, settle=settle)
     tracked = track(filter_domain(rows, domain)) if domain is not None else TrackSet((), ())
+    region = infer_phase_domain(rows[settle:])
     return Report(
         number=number,
         width=width,
@@ -779,4 +1120,5 @@ def inspect(
         collisions=tracked.collisions,
         states=local_causal_states(rows),
         claim=claim(number),
+        region_domain=region,
     )

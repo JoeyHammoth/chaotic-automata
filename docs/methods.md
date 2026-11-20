@@ -150,9 +150,11 @@ Scope: 1D binary CA of radius 1–2. 2D reconstruction is explicitly out of scop
 
 - Rule 90 reproduces Pascal's triangle mod 2 exactly — unit test against the binomial-coefficient
   parity.
-- Rule 18 has a single regular domain `(0Σ)*`: every other site is zero, the rest free. Confirmed
-  against Hanson & Crutchfield's domain analysis as summarised in Mitchell's review and Cenek's
-  dissertation.
+- Rule 18 has a single regular domain `(0Σ)*`: every other site is zero, the rest free. It is a
+  *domain* in the literature's sense — an invariant set of configurations, recovered as regions
+  separated by walls — not a pattern that holds at one phase across a whole row. Reproduced; the
+  measurement is under "As implemented". Sources: Wolfram, *Rev. Mod. Phys.* **55**, 601 (1983);
+  Hanson & Crutchfield, *Physica D* **103**, 169 (1997); Cenek, dissertation (2011).
 - Rule 110: ether plus gliders; exact spatial/temporal periods must be taken from Cook (2004) before
   being hard-coded as golden values. **Not yet verified** — placeholder.
 - Rule 30: labelled "no known domain decomposition". Do not invent one.
@@ -178,12 +180,42 @@ Measured on a 128-cell torus over 96 observed rows, from a seeded 50% row (seed 
 | 18 | `None` |
 | 30 | `None`, and the report says "no known domain decomposition" |
 
-**Rule 18's `(0 Sigma)*` is not reproduced.** The anchor above came from the design document's reading
-of the literature, not from a run. The shape is expressible by this detector, directly: it is the
-period-2 pattern `(0, None)`. Over 256 rows of a 256-cell torus the best always-zero class reaches
-only 0.68 of rows at period 1 and 0.64 at period 2, so no such class holds. The claim therefore
-travels with the code as `Claim.verified is False`, and #49 is the ticket that either recovers the
-domain with a spatial epsilon-machine or corrects the claim.
+**Rule 18's `(0 Sigma)*` is a domain, and it is reproduced once it is read as one.** An earlier
+version of this section reported a contradiction: the periodic finder returns `None` for rule 18, so
+the anchor looked wrong. It was the instrument. In the literature the phrase describes an *invariant
+set* of spatial configurations — cells where every other site is zero, the remainder free — and a
+rule-18 row is a concatenation of such regions in either phase, separated by walls that move,
+annihilate in pairs and perform a random walk [Wolfram, *Rev. Mod. Phys.* **55**, 601 (1983);
+Hanson & Crutchfield, *Physica D* **103**, 169 (1997); Cenek, dissertation (2011)]. A detector that
+demands one phase at every offset of every row asks for something the literature never claimed.
+
+`infer_phase_domain` tiles each row with both phases, minimising violations first and walls second,
+and accepts a window only when no forced cell is broken and the worst row spends at most 1/8 of its
+width on walls. Measured over 249 observed rows (seed 11, 8-row settle):
+
+| Rule | Walls/row at 128 / 256 | Worst row | Violations | Read as |
+|---|---|---|---|---|
+| 18 | 3.08 / 6.12 | 7.8% | 0 | `(0 Sigma)*` regions around a wall gas |
+| 36, 164 | 4.00 / 8.00 | 3.1% | 0 | domain agreed by both detectors |
+| 30 | 42.00 / 86.21 | 45.3% | 0 | no domain: a third of the row is wall |
+| 54, 22 | 37.46 / 73.97, 32.80 / 66.06 | 43.0% | 0 | no domain |
+| 0 | 0.00 / 0.00 | 0.0% | 0 | quiescent |
+
+Zero violations is not a decomposition on its own: the tiling can wall off everything, which is
+exactly what rule 30 does. The wall budget is what separates a domain with particles in it from no
+domain at all — rules 18, 36 and 164 need 1.8-7.8% of a row, while rules 30, 54 and 22 need 26-45%.
+
+The walls thin with time, as an annihilating gas should: over ten seeds at 256 cells, 14.8 walls per
+row at `t = 16`, 8.8 at 64, 6.6 at 128, 4.2 at 256.
+
+**The spatial epsilon-machine learns the mixture, not the domain.** `spatial_machine` clusters
+spatial histories of bounded length by the distribution of the next symbol, merging with a G-test at
+`alpha = 0.01` and leaving histories seen fewer than 64 times undecided. On rule 18's whole attractor
+at `L = 4` it reports 5 states, which is the right answer for a field that is two phases plus walls;
+on rule 30 it reports 2. On a row drawn from an exact `(0 1)*` language the same code reports 2
+states and a 2-symbol cycle, which is the check that the inference works when the field really is a
+single deterministic domain. Counts are reported per seed rather than once: rule 18 gives
+5,5,5,5,5,5,7,7,5,5 over ten seeds (interval 5.0-5.8), the finite-data spread a single run hides.
 
 **Particles need a domain to exist first.** Connected components of an unfiltered field are the
 chaotic sea: rule 30's raw field is one component 256 rows tall. A `Report` therefore reports tracks
