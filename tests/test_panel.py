@@ -3,8 +3,18 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
-from computation_atlas.panel import build, build_document, filtered_field, pack_bits, unpack_bits
+import pytest
+
+from computation_atlas.panel import (
+    build,
+    build_document,
+    filtered_field,
+    pack_bits,
+    serialize,
+    unpack_bits,
+)
 
 
 def test_bit_packing_round_trips_a_ragged_width() -> None:
@@ -65,6 +75,29 @@ def test_damage_starts_at_the_flipped_cell() -> None:
     rows = unpack_bits(panel["fields"]["damage"], 64, panel["steps"] + 1 - panel["settle"])
     assert sum(rows[0]) == 1, "one flipped cell on the first observed row"
     assert sum(rows[-1]) >= sum(rows[0]), "damage spreads, it does not shrink"
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.skipif(
+    not (REPO_ROOT / "products" / "inspector").exists(),
+    reason="the committed panel product is absent",
+)
+def test_committed_panel_matches_its_generator() -> None:
+    """The page draws committed figures, so the committed figures must still be reproducible."""
+    committed = (REPO_ROOT / "products" / "inspector" / "panel.json").read_text(encoding="utf-8")
+    document = json.loads(committed)
+    rebuilt = build_document(
+        tuple(entry["rule"] for entry in document["rules"]),
+        width=document["width"],
+        steps=document["steps"],
+        seed=document["seed"],
+        settle=document["settle"],
+    )
+    assert serialize(rebuilt) == committed, (
+        "products/inspector/panel.json is stale; rerun python -m computation_atlas.panel"
+    )
 
 
 def test_a_rule_with_no_domain_has_no_residue_argument_to_make() -> None:

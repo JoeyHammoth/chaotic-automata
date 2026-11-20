@@ -73,9 +73,10 @@ deliverable, not an apology.
   re-verify the Coq proof.
 - **No new theorems.** The contribution is faithful, well-instrumented reimplementation plus a
   comparison result about metric disagreement.
-- **Some cited constants are still placeholders.** Rule 110's ether periods, the OTCA metapixel
-  dimensions and the Antihydra machine string are flagged in `docs/methods.md` until verified against
-  the primary source.
+- **Some cited constants are still placeholders.** The OTCA metapixel dimensions and the Antihydra
+  machine string are flagged in `docs/methods.md` until verified against the primary source. Rule
+  110's ether periods are no longer among them — they are checked against Cook (2004) in
+  `tests/test_rule110.py` — but its glider periods still are.
 
 - **Rule 18's domain is regional, and the product says so.** `(0Σ)*` is an invariant set of
   configurations, recovered as `(0Σ)*` and `(Σ0)*` regions separated by walls, not as one phase holding

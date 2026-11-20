@@ -1029,9 +1029,9 @@ CLAIMS: dict[int, Claim] = {
         verified=True,
     ),
     110: Claim(
-        text="ether plus gliders",
-        source="Cook (2004); periods not yet checked",
-        verified=False,
+        text="ether 00010011011111: 14 cells by 7 steps",
+        source="Cook (2004), Complex Systems 15(1), §3.1",
+        verified=True,
     ),
 }
 
