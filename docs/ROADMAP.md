@@ -10,7 +10,7 @@ are delivery boundaries; the project board is the live queue.
 | **M2 · Inspector** | M2 | Rule 90 matches Pascal mod 2; rule 18 recovers `(0Σ)*`; rule 110 ether/glider decomposition passes golden periods; shuffled-time nulls yield no spurious particles above the stated false-positive rate |
 | **M3 · HashLife Zoom** | M3 | Bit-exact against the naive stepper; Golly-captured golden generations pass; metapixel zoom works; memory gauge and node cap enforced |
 | **M4 · Stress Lab** | M4 | Toom lifetime grows with `L` below threshold and collapses above; Domany–Kinzel boundary and `δ ≈ 0.1595` fit within stated tolerance; noise overlay re-colours the atlas |
-| **M5 · Signature module** | M5a or M5b | Forge: hardened circuit matches hard forward pass and recovers `B3/S23` on all 512 neighbourhoods. Verifier: BB(2..4) exhaustive values reproduce, BB(5) champion halts at 47,176,870, mutated certificates are rejected |
+| **M5 · Signature module** | M5b Verifier (ADR 0005) | BB(2..4) exhaustive values reproduce, BB(5) champion halts at 47,176,870, mutated certificates are rejected, and `unknown` stays visibly distinct from non-halting |
 | **M6 · Compiler** *(stretch, cut line)* | M6 | Decoder output equals the cyclic-tag reference trace for a battery of programs; otherwise ship "Rule 110 anatomy" |
 | **M7 · Heritage** *(stretch, cut line)* | M7 | Sandpile statistics reproduced with log-binned MLE and finite-size scaling, with the original biased fit shown beside it |
 
