@@ -305,6 +305,22 @@ dimensions on LifeWiki when importing it.
 **Memory.** Arena allocation with generation-based GC, a hard node cap, and a visible memory gauge.
 Chaotic soups are the honest benchmark: HashLife degrades to near-naive speed there.
 
+**As implemented (engine only).** `crates/ca-core/src/hashlife.rs` holds the canonical quadtree, the
+memoised step and the rule-agnostic 4×4 leaf case, transcribed from Rokicki's `nextGeneration`
+(Tomas G. Rokicki, "An Algorithm for Compressing Space and Time", *Dr. Dobb's Journal*, April 2006).
+
+The differential tests pad the reference torus by the number of generations being compared, so the
+wrap cannot reach the compared window inside those generations: on a 24×24 soup at 30% density
+(seed 12345) over 16 generations the two engines agree cell for cell, and the populations agree with
+them. Still lifes keep their population exactly over 32 generations; a glider returns to its own
+shape after four generations and not after two; equal subtrees canonicalise to one node id; a step
+that would pass the node cap returns an error naming the cap and the number of hits rather than
+silently exceeding it.
+
+Not yet done, and therefore not claimed: Golly-captured golden generations, the chaotic-soup
+benchmark, and the zoom UI. The population criterion is met exactly for still lifes and as the
+engine's own count elsewhere — it is not yet cross-checked against the reference over long runs.
+
 ## M4 · Stress Lab
 
 **Toom's rule (NEC majority).** A cell takes the majority of itself, its north and east neighbours;

@@ -6,11 +6,13 @@
 //! it holds.
 
 pub mod digest;
+pub mod hashlife;
 pub mod packed;
 pub mod reference;
 pub mod rule;
 pub mod seed;
 
+pub use hashlife::{HashLife, HashLifeError, NodeId};
 pub use packed::{EngineError, PackedEngine};
 pub use reference::ReferenceEngine;
 pub use rule::{Rule, RuleError};
