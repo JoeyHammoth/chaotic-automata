@@ -33,6 +33,7 @@ from computation_atlas.inspector import (
     spacetime_from,
     spatial_inference,
     spatial_machine,
+    state_separation,
     track,
 )
 
@@ -273,6 +274,43 @@ def test_spatial_machine_recovers_a_two_state_cycle_on_an_exact_language() -> No
     assert cycle is not None
     assert len(cycle) == 2
     assert set(cycle) == {0, 1}
+
+
+def test_the_complexity_field_marks_rule_18s_walls() -> None:
+    rows = spacetime(elementary(18), 256, 256, SEED)
+    separation = state_separation(rows)
+    assert separation is not None
+    assert separation.wall_cells > 1000
+    assert separation.ratio > 1.25, "the kink mask is brighter than the bulk"
+    assert separation.separates, "no rotation of the mask reaches the real ratio"
+
+
+def test_the_complexity_field_marks_rule_36s_walls() -> None:
+    rows = spacetime(elementary(36), 256, 256, SEED)
+    separation = state_separation(rows)
+    assert separation is not None
+    assert separation.wall_complexity > 3.0
+    assert separation.bulk_complexity < 1.5
+    assert separation.ratio > 3.5
+    assert separation.separates
+
+
+def test_the_one_cell_wall_mask_does_not_separate_rule_18() -> None:
+    """A phase flip is a boundary, not a cell, and the defect sits on both sides of it.
+
+    This is a limitation of the complexity field at past depth 2, pinned so that a wider mask cannot
+    later be passed off as the one-cell result: over six seeds the wall cell alone scores 0.88-0.91
+    of the rotation null.
+    """
+    rows = spacetime(elementary(18), 256, 256, SEED)
+    separation = state_separation(rows, reach=0)
+    assert separation is not None
+    assert not separation.separates
+
+
+def test_a_rule_without_a_domain_gets_no_separation_claim() -> None:
+    rows = spacetime(elementary(30), 256, 256, SEED)
+    assert state_separation(rows) is None
 
 
 def test_state_counts_are_reported_across_seeds() -> None:

@@ -1006,6 +1006,111 @@ def local_causal_states(
     )
 
 
+@dataclass(frozen=True)
+class StateSeparation:
+    """Does the complexity field put particles where the domain ends?
+
+    ``ratio`` is the mean local statistical complexity at the tiling's wall cells over the mean
+    everywhere else; ``null_ratio`` is the largest ratio the same walls reach when rotated against
+    the complexity field, which keeps each row's wall count and spacing and breaks only the
+    alignment. ``separates`` is ``ratio > null_ratio``, and nothing weaker is called a separation:
+    a ratio that the best accident matches says the walls were never what the heatmap was showing.
+    """
+
+    ratio: float
+    null_ratio: float
+    wall_complexity: float
+    bulk_complexity: float
+    wall_cells: int
+    rows: int
+    states: int
+    rotations: int
+
+    @property
+    def separates(self) -> bool:
+        return self.ratio > self.null_ratio
+
+
+def state_separation(
+    rows: tuple[bytes, ...] | list[bytes],
+    *,
+    settle: int = 8,
+    past: int = 2,
+    future: int = 1,
+    reach: int = 1,
+    rotations: int = 64,
+) -> StateSeparation | None:
+    """Test that the heatmap marks particles rather than domains, or return ``None``.
+
+    The heatmap colours each cell by the surprise of its causal state, which is high where the field
+    is not the domain. This measures that rather than leaving it to the eye: mean complexity on the
+    kink mask against the mean elsewhere, and the same comparison under a rotation null.
+
+    The mask is each wall and its ``reach`` neighbours, because a phase flip is a boundary between
+    cells and the defect sits on both sides of it. Measured over six seeds at 256 cells, rule 18's
+    wall cell alone scores 0.88-0.91 of the rotation null — it does not separate — while the kink
+    mask separates on all six by 5-9%.
+
+    A rule with no phase domain gets ``None``. Rule 30's tiling walls off a third of every row, so a
+    ratio over those walls would describe the absence of a decomposition, not a particle.
+    """
+    if not rows:
+        raise ValueError("rows is empty")
+    if settle < 0:
+        raise ValueError("settle must not be negative")
+    if reach < 0:
+        raise ValueError("reach must not be negative")
+    if rotations < 1:
+        raise ValueError("rotations must be at least 1")
+    body = list(rows[settle:])
+    if not body:
+        raise ValueError("no rows left after settle")
+    if infer_phase_domain(body) is None:
+        return None
+    states = local_causal_states(rows, past=past, future=future)
+    width = len(rows[0])
+    walls: list[tuple[int, ...]] = []
+    complexity: list[tuple[float, ...]] = []
+    totals: list[float] = []
+    for t in range(settle, len(rows)):
+        marks = domain_tiling(rows[t]).walls
+        mask = {(i + d) % width for i in marks for d in range(-reach, reach + 1)}
+        walls.append(tuple(sorted(mask)))
+        complexity.append(states.complexity[t])
+        totals.append(sum(states.complexity[t]))
+
+    def measure(shift: int) -> tuple[float, float, int]:
+        """``(mean at walls, mean elsewhere, wall cells)`` with the walls rotated by ``shift``."""
+        inside = 0.0
+        count = 0
+        for row_complexity, row_walls, _ in zip(complexity, walls, totals, strict=True):
+            inside += sum(row_complexity[(i + shift) % width] for i in row_walls)
+            count += len(row_walls)
+        cells = len(complexity) * width
+        if count == 0 or count == cells:
+            return 0.0, 0.0, count
+        return inside / count, (sum(totals) - inside) / (cells - count), count
+
+    wall_mean, bulk_mean, wall_cells = measure(0)
+    if wall_mean <= 0.0 or bulk_mean <= 0.0:
+        return None
+    null_ratio = 0.0
+    for shift in range(1, rotations + 1):
+        rotated_wall, rotated_bulk, _ = measure(shift)
+        if rotated_bulk > 0:
+            null_ratio = max(null_ratio, rotated_wall / rotated_bulk)
+    return StateSeparation(
+        ratio=wall_mean / bulk_mean,
+        null_ratio=null_ratio,
+        wall_complexity=wall_mean,
+        bulk_complexity=bulk_mean,
+        wall_cells=wall_cells,
+        rows=len(complexity),
+        states=states.count,
+        rotations=rotations,
+    )
+
+
 NO_DECOMPOSITION = "no known domain decomposition"
 
 

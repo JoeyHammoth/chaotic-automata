@@ -242,6 +242,22 @@ nothing: from 50% soup on a 256-cell torus, rule 90's density reaches zero withi
 over the next row, merging classes with a G-test at `alpha = 0.01`. Cells observed fewer than 8
 times get state `-1` and are counted as `undecided`, never assigned to a state.
 
+**The heatmap marks particles, and the measurement says by how much.** `state_separation` compares
+mean local complexity on the kink mask — each tiling wall and its neighbours — with the mean
+everywhere else, then compares that ratio with the same mask rotated against the complexity field.
+The rotation keeps each row's wall count and spacing and breaks only the alignment, and `separates`
+is `ratio > null_ratio`: a ratio the best rotation matches is not a separation. Over 249 observed rows
+at 256 cells, seed 11: rule 18 gives 2.14 bits on the mask against 1.62 elsewhere (ratio 1.32, best
+rotation 1.22), and rule 36 gives 3.50 against 0.85 (ratio 4.14, best rotation 2.94). Both hold
+across six seeds — rule 18 by 5-9%, rule 36 by 30-100%.
+
+The mask has to be wider than the wall index, and that is a limitation of the heatmap rather than of
+the tiling. With the wall cell alone rule 18's ratio is 1.24 against a rotation null of 1.38, so it
+fails on all six seeds (0.88-0.91 of the null): a phase flip is a boundary between cells, and the
+defect sits on both sides of it. `tests/test_inspector.py` pins the one-cell failure so it cannot be
+quietly repaired by widening the mask further. Rule 30 gets `None`, because its tiling walls off a
+third of every row and a ratio over that would measure the absence of a decomposition.
+
 **Particles are chained per-row blobs, not connected components.** A component merges everything that
 ever touches, which erases exactly the collisions this module exists to report. Each row's maximal
 runs are linked to the next row by mutual nearest centre within 1.5 cells; a 1:1 link continues a
