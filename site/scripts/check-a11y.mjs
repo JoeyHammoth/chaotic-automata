@@ -5,6 +5,11 @@
 // 100, because missing markup gives the rules nothing to object to, so a report with too few scored
 // audits is treated as a broken run rather than a pass. Run warnings mean Lighthouse could not audit
 // something it intended to, which is the same silent-pass problem one level down.
+//
+// A score is also a sum, and a sum absorbs a small defect: `landmark-one-main` weighs 3 of a few
+// hundred points, so a page that loses its `<main>` still scores in the high nineties and passes
+// (#65). Every scored failure is therefore its own gate failure, and the threshold stays behind it
+// as a backstop for a regression spread thinly across many audits.
 import { readFileSync } from 'node:fs';
 
 const THRESHOLD = 0.95;
@@ -43,6 +48,11 @@ for (const entry of failing) {
 }
 
 const problems = [];
+for (const entry of failing) {
+  problems.push(
+    `audit ${entry.id} (weight ${entry.weight}) failed: ${entry.audit.title}`,
+  );
+}
 if (typeof category.score !== 'number') {
   problems.push('the accessibility category was not scored');
 } else if (category.score < THRESHOLD) {

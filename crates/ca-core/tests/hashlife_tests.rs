@@ -3,6 +3,8 @@
 //! The oracle is [`ReferenceEngine`], the naive `u8` stepper, on a torus padded wide enough that
 //! the wrap cannot reach the compared region within the generations being compared (ADR 0002).
 
+use std::collections::HashSet;
+
 use ca_core::{Engine, HashLife, HashLifeError, ReferenceEngine, Rule};
 
 fn cells_from_rows(rows: &[&str]) -> (usize, usize, Vec<u8>) {
@@ -202,6 +204,108 @@ fn stepping_an_empty_universe_does_nothing() {
     assert_eq!(life.population(), 0);
     assert!(life.pattern().is_empty());
     assert_eq!(life.generation(), 64);
+}
+
+/// The north-west corner of the unique 2x2 block in `cells`.
+fn block_corner(cells: &[(usize, usize)]) -> (usize, usize) {
+    let set: HashSet<(usize, usize)> = cells.iter().copied().collect();
+    let mut corners: Vec<(usize, usize)> = cells
+        .iter()
+        .copied()
+        .filter(|&(x, y)| {
+            set.contains(&(x + 1, y)) && set.contains(&(x, y + 1)) && set.contains(&(x + 1, y + 1))
+        })
+        .collect();
+    corners.sort_unstable();
+    assert_eq!(
+        corners.len(),
+        1,
+        "expected exactly one 2x2 block, got {corners:?}"
+    );
+    corners[0]
+}
+
+/// How far the glider in `rows` moved, measured against the still-life block beside it.
+///
+/// The engine re-centres its root on every compressed step, so a cell's coordinates are not
+/// comparable across calls. The block's are: it never changes, so whatever shift it undergoes is
+/// the shift of the frame, and the glider's own movement is what survives subtracting it.
+fn glider_displacement(rows: &[&str], generations: u64) -> (isize, isize) {
+    let mut life = pattern(rows);
+    let before = life.live_cells();
+    let block_before = block_corner(&before);
+    life.step(generations).expect("the glider steps");
+    assert_eq!(life.generation(), generations);
+    let after = life.live_cells();
+    let block_after = block_corner(&after);
+
+    let frame = (
+        block_after.0 as isize - block_before.0 as isize,
+        block_after.1 as isize - block_before.1 as isize,
+    );
+    let corner = |cells: &[(usize, usize)], (bx, by): (usize, usize)| {
+        let block: HashSet<(usize, usize)> =
+            [(bx, by), (bx + 1, by), (bx, by + 1), (bx + 1, by + 1)]
+                .into_iter()
+                .collect();
+        let mut corner = (isize::MAX, isize::MAX);
+        for &(x, y) in cells {
+            if block.contains(&(x, y)) {
+                continue;
+            }
+            corner = (corner.0.min(x as isize), corner.1.min(y as isize));
+        }
+        corner
+    };
+    let (x0, y0) = corner(&before, block_before);
+    let (x1, y1) = corner(&after, block_after);
+    (x1 - x0 - frame.0, y1 - y0 - frame.1)
+}
+
+#[test]
+fn a_glider_translates_one_cell_diagonally_per_period() {
+    // Sixteen cells wide with the block close by: four generations are one compressed step, which
+    // needs the whole pattern inside an 8-cell half.
+    let near = vec![
+        ".#..............",
+        "..#.............",
+        "###.............",
+        "................",
+        "................",
+        ".....##.........",
+        ".....##.........",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+    ];
+    assert_eq!(glider_displacement(&near, 4), (1, 1));
+
+    // Twenty cells wide with the block out of reach: eight generations, two periods, two cells.
+    let far = vec![
+        ".#..................",
+        "..#.................",
+        "###.................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "..........##........",
+        "..........##........",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+    ];
+    assert_eq!(glider_displacement(&far, 8), (2, 2));
 }
 
 #[test]
