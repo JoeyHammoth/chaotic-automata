@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Computation Atlas — Stress Lab</title>
+    <meta
+      name="description"
+      content="Toom's rule against noise, and the Domany–Kinzel phase diagram with a directed-percolation density decay fit. Every run carries its seed, and a capped run is a lower bound."
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Stress Lab</h1>
+        <p class="lede">
+          Two questions about noise. Can a local rule hold a stored bit against independent errors,
+          and does its lifetime grow with the lattice? And where, in the Domany–Kinzel plane, does
+          activity survive at all? Every figure here is a recorded run with its seed beside it, and
+          a run that reached its cap is drawn as <code>≥ cap</code> — never as a lifetime.
+        </p>
+      </header>
+
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <section class="panel" aria-labelledby="toom-heading">
+        <h2 id="toom-heading">Toom's rule (NEC majority)</h2>
+        <p class="lede">
+          A cell takes the majority of itself, its north and east neighbours, and then every cell is
+          flipped with probability ε. The rule is asymmetric on purpose: the stored bit survives
+          noise that erases it under the symmetric majority of the four neighbours.
+        </p>
+        <div class="controls">
+          <label for="noise">Noise ε</label>
+          <input
+            id="noise"
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value="2"
+            aria-describedby="noise-note"
+          />
+          <output id="noise-value" for="noise">1/16 = 0.0625</output>
+          <span class="spacer"></span>
+          <span class="status" id="noise-note">the noise grid is dyadic, so ε is exact</span>
+        </div>
+        <figure class="pane">
+          <canvas
+            id="toom-chart"
+            width="820"
+            height="420"
+            role="img"
+            aria-label="Steps until the stored bit is lost, against lattice size, for NEC majority and the four-neighbour majority"
+          ></canvas>
+          <figcaption id="toom-caption">Steps until the bit is lost, by lattice.</figcaption>
+        </figure>
+        <table class="data">
+          <caption id="toom-table-caption">
+            Median lifetime at the selected noise, per lattice.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">lattice</th>
+              <th scope="col">NEC (Toom)</th>
+              <th scope="col">4-neighbour majority</th>
+            </tr>
+          </thead>
+          <tbody id="toom-table"></tbody>
+        </table>
+        <div id="toom-claim" class="claim"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="dk-heading">
+        <h2 id="dk-heading">Domany–Kinzel phase diagram</h2>
+        <p class="lede">
+          A site becomes active with probability p1 if exactly one neighbour was active and p2 if
+          both were. Bond directed percolation is the line p2 = p1(2 − p1), critical at
+          p1 = 0.644700185 — the point whose density decay is fitted below.
+        </p>
+        <div class="phase">
+          <figure class="pane">
+            <canvas
+              id="dk-chart"
+              width="520"
+              height="520"
+              role="img"
+              aria-label="Active fraction over the p1 and p2 plane, with the bond and site directed-percolation critical points ringed"
+            ></canvas>
+            <figcaption>Active fraction of seeds after the run. Click a cell to read it.</figcaption>
+          </figure>
+          <div>
+            <p id="dk-readout" class="readout" aria-live="polite">
+              Click the diagram to read a point.
+            </p>
+            <p id="dk-summary" class="status"></p>
+            <table class="data">
+              <caption>
+                Density decay at the directed-percolation point.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">L</th>
+                  <th scope="col">δ̂</th>
+                  <th scope="col">95% interval</th>
+                  <th scope="col">verdict</th>
+                </tr>
+              </thead>
+              <tbody id="dk-table"></tbody>
+            </table>
+            <div id="dk-verdict" class="claim"></div>
+          </div>
+        </div>
+      </section>
+
+      <p class="status" id="status" aria-live="polite">loading the panel…</p>
+      <p class="status">
+        <a href="/">Back to the atlas</a> · <a href="/inspector.html">Inspector</a>
+      </p>
+    </main>
+
+    <script type="module" src="/src/stress/main.ts"></script>
+  </body>
+</html>
