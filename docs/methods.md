@@ -349,6 +349,94 @@ absorbing phases. At the `(1+1)`-dimensional directed-percolation point the dens
 document's "about 0.16" is correct to two significant figures. Fit with finite-size tolerance and
 publish the system sizes.
 
+**Bond and site directed percolation sit at named points.** Bond DP is the line `p2 = p1(2 - p1)`,
+critical at `p1 = p_c = 0.644700185(5)`, which is `(p1, p2) = (0.644700185, 0.873762040)`; site DP
+is `p1 = p2 = 0.70548522(4)`. `p_c` is non-universal, and these are the `(1+1)`-dimensional
+square-lattice values from Jensen's low-density series, J. Phys. A **32**, 5233 (1999),
+[arXiv:cond-mat/9906036](https://arxiv.org/cond-mat/9906036); the mapping onto `(p1, p2)` is
+Hinrichsen, Adv. Phys. **49**, 815 (2000). The bond point is easy to mis-state as `(0.5, 0.75)`,
+which is below the transition: a probe that ran there returned an absorbing lattice rather than a
+decay.
+
+### As implemented
+
+`src/computation_atlas/stress.py` writes `products/stress/panel.json`; `site/stress.html` decodes it
+and draws two panels. Nothing is computed in the browser, so a figure and the committed bytes cannot
+disagree.
+
+**A lattice is one integer.** One bit per cell, so an update is a handful of shifts and masks on an
+`L^2`-bit integer instead of a Python loop over cells, and the cost per step does not depend on the
+lattice area. That is what makes a pure-Python sweep affordable: the whole product takes about 40
+seconds, which is also what the staleness test costs.
+
+**Noise is exact, and the grid says so.** A mask whose bits are independently one with probability
+`m/2^k` is built by bit-slicing `k` random words and comparing the sliced value against `m`, so the
+noise grid is dyadic — `1/64, 1/32, 1/16, 3/32, 1/8, 1/4` — and every value is exactly
+representable. A decimal grid would have forced either per-cell sampling or a probability the
+document would have had to round while claiming not to.
+
+**The stored bit is lost when fewer than half the cells still hold it.** A run that reaches the cap
+is a lower bound: the document carries `capped` and the page draws it on the cap line, never as a
+lifetime. Measured at 8, 16, 32 and 64 cells, cap 5,000, seeds 11, 23 and 37 (medians; `>=` marks a
+run that reached the cap):
+
+| ε | NEC 8 | 16 | 32 | 64 | 4-neighbour 8 | 16 | 32 | 64 |
+|---|---|---|---|---|---|---|---|---|
+| 1/64 = 0.0156 | >=5000 | >=5000 | >=5000 | >=5000 | >=5000 | >=5000 | >=5000 | >=5000 |
+| 1/32 = 0.0313 | >=5000 | >=5000 | >=5000 | >=5000 | >=5000 | >=5000 | >=5000 | >=5000 |
+| 1/16 = 0.0625 | >=5000 | >=5000 | >=5000 | >=5000 | 807 | >=5000 | >=5000 | >=5000 |
+| 3/32 = 0.0938 | 544 | 445 | 561 | 2388 | 110 | 409 | 471 | 370 |
+| 1/8 = 0.125 | 16 | 56 | 121 | 103 | 49 | 51 | 84 | 82 |
+| 1/4 = 0.25 | 6 | 11 | 14 | 18 | 12 | 9 | 10 | 13 |
+
+What the table supports, and what it does not:
+
+- At 1/16 the NEC runs reach the cap at every lattice while the four-neighbour rule loses the bit at
+  8 cells after 807 steps: same noise, same page.
+- At 3/32 the NEC lifetime climbs with lattice size (544, 445, 561, 2388 — the 16-cell dip is one
+  seed) while the four-neighbour rule is flat (110, 409, 471, 370). That is the scaling difference
+  the theorem is about, not a speed difference.
+- At 1/8 and 1/4 both rules collapse, and NEC is the faster loser (16-121 against 49-82 at 1/8).
+  Toom's result is a survival statement, not a speed statement, and the panel says so rather than
+  hiding the regime.
+- A finite lattice cannot prove a threshold. The table shows where lifetimes stop growing with `L`;
+  what makes that a threshold is the quoted theorem, and the page labels it as quoted.
+
+**The contrast rule is the four-neighbour majority, not the five-cell one.** Including the cell's own
+value gives a different rule, one with a threshold of its own, and it outlasts NEC at 1/8. The design
+document's "plain majority of neighbours" is the symmetric rule without self, with a 2-2 tie broken
+by a fair coin: a full row of ones is all ties, so the interface wanders and the bit is lost.
+`tests/test_stress.py` pins that tie-break, because removing it would quietly change the rule.
+
+**The phase diagram is a measurement at one size.** Active fraction over the 17 x 17 `(p1, p2)` grid
+at `L = 256` for 400 steps with seeds 11 and 23. The boundary is the contour where the active
+fraction crosses one half. It passes within one grid step of the bond point (0.625, 0.8125 against
+0.6447, 0.8738) and through the site point's row (0.6875, 0.6875 against 0.7055, 0.7055). The two
+literature points are ringed on the page, and the page says they are quoted, not proved by a
+256-cell lattice.
+
+**The decay is measured in the equivalent bond process.** `(p1, p2)` on the 1/16 diagram grid would
+round `p_c` by 0.02, which is far off criticality; the bond process takes `p` as a single
+probability, so `p = 2641/4096 = 0.6447754` is within 7.5e-5 of the quoted value. 32 seeds per
+lattice, `L = 512` and 1024, 4,000 steps from a 50% row; the fit is the log-log slope of the density
+**averaged over seeds**, not the average of per-seed slopes, because one ring is a single correlated
+sample and its own slope is nearly meaningless. The interval is a percentile bootstrap over seeds
+(200 resamples).
+
+| L | δ̂ | 95% interval | verdict |
+|---|---|---|---|
+| 512 | 0.180 | 0.139 - 0.216 | consistent |
+| 1024 | 0.137 | 0.115 - 0.155 | consistent |
+
+The two lattices straddle the quoted `δ = 0.159464(6)`, which is what a finite-size estimate at this
+ensemble size looks like; neither is a claim to the quoted precision. The tolerance is stated as
+`±0.05` because 4,000 steps cannot resolve six decimal places — the band is set by what the run
+resolves, not by the precision of the value it is compared with. A run that absorbed inside the
+window yields no fit and is reported as undecided.
+
+Not yet done, and therefore not claimed: the noise overlay that re-colours the atlas (#22) and the
+hierarchical error-correction panel.
+
 **Hierarchical error correction (pedagogical).** Concatenated-majority tower: blocks encode
 higher-level cells, which are blocked again. Labelled as an analogue of Gács's construction, not the
 construction itself.

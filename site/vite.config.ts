@@ -7,8 +7,9 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
     rollupOptions: {
-      // Two pages: the atlas map and the Inspector panel. Both are static entry points.
-      input: { main: 'index.html', inspector: 'inspector.html' },
+      // Three pages: the atlas map, the Inspector panel and the Stress Lab. All are static entry
+      // points.
+      input: { main: 'index.html', inspector: 'inspector.html', stress: 'stress.html' },
     },
   },
   server: {
