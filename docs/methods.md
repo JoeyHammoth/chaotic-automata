@@ -317,9 +317,23 @@ shape after four generations and not after two; equal subtrees canonicalise to o
 that would pass the node cap returns an error naming the cap and the number of hits rather than
 silently exceeding it.
 
-Not yet done, and therefore not claimed: Golly-captured golden generations, the chaotic-soup
-benchmark, and the zoom UI. The population criterion is met exactly for still lifes and as the
-engine's own count elsewhere — it is not yet cross-checked against the reference over long runs.
+**Glider translation is measured against a still life, not against the root.** A compressed step
+returns the centre half of its root and the engine rebuilds that root before every step, so a
+cell's coordinates are not comparable between calls. `tests/hashlife_tests.rs` puts a block beside
+the glider and treats the block's own shift as the frame's shift: what survives subtracting it is
+one cell diagonally per four generations, two per eight. The block is out of reach in both cases,
+so it cannot be perturbed within the generations measured.
+
+**The benchmark names the slow case.** `crates/ca-core/examples/hashlife_bench.rs` measures a glider
+(`2^20` generations in about a millisecond) and chaotic soups at 64, 128 and 256 cells; the table,
+and the machine it was taken on, are in `docs/performance.md`. The soups are near-naive, and the
+reason is the tree rather than the rule: a compressed step is only usable when the whole pattern
+fits inside the centre half of its root, and a 128-wide chaotic soup fits nothing above a single
+generation, so `step` falls back to the sparse sweep.
+
+Not yet done, and therefore not claimed: Golly-captured golden generations and the zoom UI. The
+population criterion is met exactly for still lifes and as the engine's own count elsewhere — it is
+not yet cross-checked against the reference over long runs.
 
 ## M4 · Stress Lab
 
