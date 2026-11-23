@@ -60,6 +60,13 @@ the same Lighthouse version against the production build on every push and pull 
 below 95. It also fails a report that scored too few audits to mean anything, because a page that
 never boots scores 100 for having nothing to object to.
 
+Measured on 2026-11-23, the budget is a threshold rather than a zero-failure rule, and the
+difference matters. Removing `lang` from `index.html` — a weight-7 audit — scores **96** and
+**passes**; removing `lang` and the `<title>` together scores **92** and fails. A removed `<main>`
+landmark is not caught at all, because Lighthouse 13.6.0 does not score the landmark audits. The
+gate therefore catches regressions worth more than its 5-point margin and tolerates a single serious
+defect inside it. Both runs are recorded on #53.
+
 ## What these numbers do not show
 
 - **No GPU was involved.** The measurement ran in headless Chrome, which rasterises in software, so
@@ -74,6 +81,6 @@ never boots scores 100 for having nothing to object to.
   `role="application"` interaction remain untested with assistive technology.
 
 The committed e2e suite (`site/e2e/atlas.spec.ts`) asserts the LCP and frame budgets against a
-local server in CI, and the `a11y` job does the same for accessibility, so a regression fails the
-build before it reaches this page. This document is the record of the deployed artefact, which CI
+local server in CI, and the `a11y` job does the same for accessibility, so a regression larger than
+the budget's 5-point margin fails the build before it reaches this page. This document is the record of the deployed artefact, which CI
 cannot observe.
