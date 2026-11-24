@@ -27,8 +27,8 @@ class CheckError(ValueError):
 
 def _read(text: str) -> tuple[int, list[int], list[int], list[int]]:
     blocks = text.strip().split("_")
-    if not 1 <= len(blocks) <= 5:
-        raise CheckError(f"a machine has 1 to 5 blocks, not {len(blocks)}")
+    if not 1 <= len(blocks) <= 7:
+        raise CheckError(f"a machine has 1 to 7 blocks, not {len(blocks)}")
     states = len(blocks)
     writes = [HALT] * (2 * states)
     moves = [0] * (2 * states)
@@ -46,7 +46,7 @@ def _read(text: str) -> tuple[int, list[int], list[int], list[int]]:
             if cell[2] == "H":
                 targets[slot] = HALT
             else:
-                targets[slot] = "ABCDE".index(cell[2])
+                targets[slot] = "ABCDEFG".index(cell[2])
     return states, writes, moves, targets
 
 

@@ -91,6 +91,27 @@ export function liveCells(pattern: Pattern): Array<[number, number]> {
   return out;
 }
 
+/**
+ * Repeat a pattern in a grid of copies: a metapixel array is exactly this, and the tiling is done
+ * here rather than in a fixture file so the source pattern stays the one that was published.
+ */
+export function tile(pattern: Pattern, columns: number, rows: number): Pattern {
+  if (columns < 1 || rows < 1) throw new PatternError('a tiling needs at least one copy');
+  const width = pattern.width * columns;
+  const height = pattern.height * rows;
+  const cells = new Uint8Array(width * height);
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      for (let y = 0; y < pattern.height; y++) {
+        const from = y * pattern.width;
+        const to = (row * pattern.height + y) * width + column * pattern.width;
+        cells.set(pattern.cells.subarray(from, from + pattern.width), to);
+      }
+    }
+  }
+  return { ...pattern, width, height, cells };
+}
+
 export function population(pattern: Pattern): number {
   let total = 0;
   for (const cell of pattern.cells) total += cell;

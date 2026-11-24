@@ -339,15 +339,23 @@ cross-checked against the reference over long runs.
 `hl_step` for the variable time step, `hl_view` for a level-of-detail window in which each byte is
 the population of the node that pixel covers, and the node count, cap and cap hits for the gauge.
 The page renders at level `floor(log2(cells per pixel))`, so a node smaller than a pixel draws as
-its density and a metapixel-sized pattern stays legible when zoomed out. The step control offers
+its density and a metapixel-sized pattern stays legible when zoomed out. The module's node cap is
+4,194,304; the metapixel array uses 2,307,268 of them and about 590 MB of module memory, and the
+gauge shows that fraction, so the heaviest exhibit states its cost instead of hiding it. The step control offers
 powers of two because a compressed step is one, the tree view reports nodes against `4^level`
 nominal cells, and the URL carries the pattern, generation, scale and origin, so a view is
 shareable.
 
-RLE and macrocell are both parsed in the page and written straight into the module's memory. Import
-is tested on the Gosper glider gun (RLE) and on a glider written as a macrocell leaf and as a
-two-level tree. A breeder and the OTCA metapixel are **not** shipped as fixtures, so importing those
-two patterns is not claimed.
+RLE and macrocell are both parsed in the page and written straight into the module's memory. Four
+pattern files ship as fixtures and are asserted cell-for-cell by the tests: the Gosper glider gun
+(36 cells), Riley's breeder (38 cells in 135×41, quadratic growth), a glider written as a macrocell
+leaf and as a two-level tree, and the OTCA metapixel — Brice Due's 2058×2058 unit cell with 64,691
+live cells, quoted from the LifeWiki pattern collection. The page also offers the metapixel tiled
+2×2 (4116×4116, 258,764 cells, each quadrant verified to be one intact copy), which is the array the
+nested-structure zoom is about: at 640 pixels across 4116 cells a pixel covers a node, so four
+metapixels read as four densities and zooming in resolves each one into its own structure. Tiling is
+done in the importer rather than baked into a fixture, so the source pattern stays the one that was
+published.
 
 ## M4 · Stress Lab
 
@@ -523,8 +531,10 @@ are never collapsed.
 
 **Validation.** `S(2)=6`, `S(3)=21`, `S(4)=107` by exhaustive search; the BB(5) champion halts after
 47,176,870 steps; certificates pass the checker on a labelled set and fail on mutated certificates.
-Machine strings are taken from the bbchallenge wiki and checked there before use — the Antihydra
-string quoted in the design document is unverified and must be confirmed.
+Machine strings are taken from the bbchallenge wiki and checked there before use. The Antihydra
+string quoted in the design document did not match the wiki and has been replaced by the wiki's
+`1RB1RA_0LC1LE_1LD1LC_1LA0LB_1LF1RE_---0RA`; every string in the product now round-trips through the
+parser to exactly the text the wiki publishes.
 
 **As implemented.** `src/computation_atlas/verifier.py` holds the deciders and the search,
 `src/computation_atlas/checker.py` the checker: its own parser and its own stepper, no import from
@@ -552,6 +562,13 @@ kinds) has every certificate accepted and every mutation refused — a step coun
 shift off by one, a period off by one, and a kind relabelled as a translation. A shifted start is
 not among the mutations: a true cycle is true from any phase, so that mutation would have been a
 test of nothing.
+
+**Cryptids.** Four quoted machines whose halting problem is tied to an open problem — Bigfoot
+(BB(7)), Antihydra, Lucy's Moonlight and Space Needle (BB(6)) — are run for the same 256 steps and
+reported as what that run is: a guess with no certificate, next to the wiki's own words about each
+one. The page says in the same row that the run proves nothing about halting, because a cryptid is
+quoted precisely because nobody knows. This is an exhibit of the classification, not a search: the
+six-state space is not enumerable here, and nothing in the product counts a cryptid as decided.
 
 What is not claimed: the checker is a second implementation, not a proof, and it says only "this
 certificate replays". BB(5) is quoted from the paper, not re-proved here; the four-state sweep is

@@ -62,15 +62,35 @@ function loadModule(): Promise<Exports | null> {
   return modulePromise;
 }
 
-export async function createHashLife(pattern: Pattern): Promise<HashLife | null> {
+/**
+ * Build the tree for a pattern. Throws with the reason it could not, because "the module is
+ * missing" is the wrong message for a pattern the node cap refused.
+ */
+export async function createHashLife(pattern: Pattern): Promise<HashLife> {
   const exports = await loadModule();
-  if (!exports) return null;
+  if (!exports) {
+    throw new Error(
+      'the HashLife module did not load. Run `npm run build:wasm` so the page has a module with ' +
+        'the zoom exports.',
+    );
+  }
   const rule = pattern.rule === null ? parseRule('B3/S23') : parseRule(pattern.rule);
 
   const pointer = exports.hl_input(pattern.cells.length);
-  if (pointer === 0) return null;
+  if (pointer === 0) {
+    throw new Error(
+      `the module could not allocate ${pattern.cells.length.toLocaleString('en-US')} cells for ` +
+        'this pattern',
+    );
+  }
   new Uint8Array(exports.memory.buffer, pointer, pattern.cells.length).set(pattern.cells);
-  if (exports.hl_load(ruleMask(rule), pattern.width, pattern.height) !== 1) return null;
+  if (exports.hl_load(ruleMask(rule), pattern.width, pattern.height) !== 1) {
+    throw new Error(
+      `the tree refused this pattern: it needs more than the ${exports
+        .hl_cap()
+        .toLocaleString('en-US')} nodes this page allows, or a level past the limit`,
+    );
+  }
 
   return {
     rule,

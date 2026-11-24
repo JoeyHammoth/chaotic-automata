@@ -43,6 +43,25 @@ test('RLE and macrocell import both report what they read', async ({ page }) => 
   await expect(page.locator('#import-note')).toContainText('from macrocell');
 });
 
+test('a breeder and a metapixel array load from their published pattern files', async ({ page }) => {
+  await page.goto('/hashlife.html');
+  const pattern = page.locator('#pattern');
+  const status = page.locator('#status');
+
+  await pattern.selectOption('breeder');
+  await expect(status).toContainText('135×41', { timeout: 20_000 });
+  await expect(status).toContainText('38 live cells');
+  await expect(status).toContainText("Riley's_breeder");
+
+  await pattern.selectOption('metapixelArray');
+  await expect(status).toContainText('4116×4116', { timeout: 40_000 });
+  await expect(status).toContainText('258,764 live cells');
+
+  // Zoomed out, four metapixels are nodes rather than cells.
+  for (let i = 0; i < 8; i++) await page.getByRole('button', { name: 'Zoom out' }).click();
+  await expect(page.locator('#plane-caption')).toContainText('population density');
+});
+
 test('the URL carries the pattern and the generation', async ({ page }) => {
   await page.goto('/hashlife.html?pattern=gun&gen=16');
   await expect(page.locator('#readout')).toContainText('generation 16', { timeout: 20_000 });

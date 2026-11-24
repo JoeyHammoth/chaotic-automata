@@ -86,6 +86,32 @@
         </p>
       </section>
 
+      <section class="panel" aria-labelledby="cryptid-heading">
+        <h2 id="cryptid-heading">Cryptids: machines nobody can classify</h2>
+        <p class="lede">
+          These machines are quoted from the bbchallenge wiki because their halting problem is tied
+          to an open problem. The pipeline runs them for the same 256 steps as everything else and
+          reports what that run is — a guess with no certificate — beside the wiki's own words. A
+          row here proves nothing about halting, and that sentence is in every row.
+        </p>
+        <table class="data">
+          <caption>
+            Quoted cryptids, what the wiki says about each, and what this pipeline can say.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">name</th>
+              <th scope="col">domain</th>
+              <th scope="col">machine</th>
+              <th scope="col">the wiki says</th>
+              <th scope="col">this pipeline</th>
+            </tr>
+          </thead>
+          <tbody id="cryptid-table"></tbody>
+        </table>
+        <p id="cryptid-note" class="status"></p>
+      </section>
+
       <section class="panel" aria-labelledby="certificate-heading">
         <h2 id="certificate-heading">Read a certificate</h2>
         <div class="controls">

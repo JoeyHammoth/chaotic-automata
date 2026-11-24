@@ -23,7 +23,8 @@ def test_a_machine_string_round_trips_and_a_halt_is_canonical():
         "2RB1LB_1LA1LA",  # a symbol that is not 0 or 1
         "1XB1LB_1LA1LA",  # a direction that is not L or R
         "1RC1LB_1LA1LA",  # a target state the machine does not have
-        "1RB1LB_1LA1LA_1LA1LA_1LA1LA_1LA1LA_1LA1LA_1LA1LA",  # more states than exist
+        # Eight blocks: the cryptid exhibits reach seven states, and no machine has more.
+        "1RB1LB_1LA1LA_1LA1LA_1LA1LA_1LA1LA_1LA1LA_1LA1LA_1LA1LA",
     ],
 )
 def test_bad_machine_strings_are_refused(text):
@@ -92,6 +93,26 @@ def test_the_manifest_records_the_champion_as_quoted_and_rerun(document):
     assert champion["halted"] is True
     assert "arXiv" in champion["source"]
     assert document["seed"] == verifier.LABEL_SEED
+
+
+def test_the_cryptids_are_quoted_verbatim_and_left_undecided(document):
+    """A cryptid is quoted, not classified: 256 steps may not produce a certificate for one."""
+    cryptids = document["cryptids"]
+    assert len(cryptids) == len(verifier.CRYPTIDS)
+    assert {"Bigfoot", "Antihydra", "Space Needle"} <= {entry["name"] for entry in cryptids}
+    for entry in cryptids:
+        machine = verifier.parse(entry["string"])
+        assert machine.string() == entry["string"], (
+            "the string does not round-trip through the parser"
+        )
+        assert machine.states == entry["states"]
+        assert machine.states >= 6, "a cryptid exhibit is a six- or seven-state machine"
+        assert entry["source"].startswith("https://wiki.bbchallenge.org")
+        assert entry["claim"], "the wiki's own words are recorded beside the machine"
+        # Nothing on the page may read as a verdict about the open problem.
+        assert entry["verdict"] != "certified"
+        assert entry["certificate"] is None
+        assert entry["checker"] is None
 
 
 def test_every_labelled_certificate_is_accepted_and_every_mutation_refused(document):
