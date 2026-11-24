@@ -7,9 +7,17 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
     rollupOptions: {
-      // Three pages: the atlas map, the Inspector panel and the Stress Lab. All are static entry
-      // points.
-      input: { main: 'index.html', inspector: 'inspector.html', stress: 'stress.html' },
+      // Five pages, all static entry points: the atlas map, the Inspector panel, the Stress Lab, the
+      // Verifier and the HashLife zoom. A page missing from this list is not built at all — it 404s
+      // on Pages while the dev server happily serves it, so the list has to be kept in step with
+      // the HTML at the root of `site/`.
+      input: {
+        main: 'index.html',
+        inspector: 'inspector.html',
+        stress: 'stress.html',
+        verifier: 'verifier.html',
+        hashlife: 'hashlife.html',
+      },
     },
   },
   server: {
