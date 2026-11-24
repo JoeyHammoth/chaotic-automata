@@ -205,8 +205,9 @@ async function adopt(
   rootLevel = shown.level;
   fit(shown);
   element('error').hidden = true;
-  status(summary);
   await render();
+  // The status names the pattern last, so it never announces a tree the table has not drawn yet.
+  status(summary);
 }
 
 async function load(pattern: Pattern, name: string): Promise<void> {
