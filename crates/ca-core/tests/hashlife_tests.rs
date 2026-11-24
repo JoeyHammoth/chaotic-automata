@@ -5,7 +5,10 @@
 
 use std::collections::HashSet;
 
-use ca_core::{Engine, HashLife, HashLifeError, ReferenceEngine, Rule};
+use ca_core::{Engine, HashLife, HashLifeError, MacrocellError, ReferenceEngine, Rule};
+
+/// Golly's own export of a glider, byte for byte (the file is committed in the site's fixtures).
+const GLIDER_MACROCELL: &str = "[M2] (golly 2.0)\n#C glider\n$$..*$...*$.***$$$$\n4 0 0 0 1\n";
 
 fn cells_from_rows(rows: &[&str]) -> (usize, usize, Vec<u8>) {
     let height = rows.len();
@@ -145,6 +148,73 @@ fn normalise(cells: &[(usize, usize)]) -> Vec<(usize, usize)> {
     let mut out: Vec<(usize, usize)> = cells.iter().map(|&(x, y)| (x - min_x, y - min_y)).collect();
     out.sort_unstable();
     out
+}
+
+#[test]
+fn a_node_and_its_index_slot_cost_at_most_forty_bytes() {
+    // The memory claim in docs/methods.md, pinned: a packed node is 32 bytes and the index adds a
+    // four-byte slot per node at most (it stays under seven eighths full). A field added to `Node`
+    // or a key put back into the index shows up here as a bigger number.
+    let cells = soup(64, 20_240_506, 35);
+    let mut life = HashLife::from_cells(Rule::life(), 64, 64, &cells, 4_000_000).expect("fits");
+    life.step(32).expect("the soup steps");
+    let nodes = life.node_count();
+    assert!(
+        nodes > 2_000,
+        "a stepped soup should build a real tree, got {nodes} nodes"
+    );
+    let per_node = life.memory_bytes() as f64 / nodes as f64;
+    assert!(
+        per_node <= 40.0,
+        "{per_node:.2} bytes per node over {nodes} nodes"
+    );
+    assert!(
+        per_node >= 32.0,
+        "{per_node:.2} bytes per node is below the node itself, so the index was not counted"
+    );
+}
+
+#[test]
+fn a_golly_macrocell_reads_as_the_pattern_it_draws() {
+    let life = HashLife::from_macrocell(GLIDER_MACROCELL, Rule::life(), 4096)
+        .expect("Golly's glider is a macrocell this reader accepts");
+    assert_eq!(life.population(), 5, "a glider is five cells");
+    let grid = pattern(&[".#.", "..#", "###"]);
+    assert_eq!(
+        life.pattern(),
+        grid.pattern(),
+        "the reader draws the glider the file drew"
+    );
+    assert_eq!(
+        life.node_count(),
+        grid.node_count(),
+        "the reader builds the same tree the grid loader does"
+    );
+    // The file's root is a level-4 square; the reader recentres onto a level whose centre half
+    // holds the pattern, which is the level a compressed step needs.
+    assert_eq!(life.level(), 3);
+}
+
+#[test]
+fn a_macrocell_naming_a_different_rule_is_refused() {
+    let text = "[M2] (golly 2.0)\n#R B36/S23\n$$***$\n";
+    match HashLife::from_macrocell(text, Rule::life(), 4096) {
+        Err(MacrocellError::Syntax { line, .. }) => assert_eq!(line, 2),
+        Err(other) => panic!("unexpected error {other:?}"),
+        Ok(_) => panic!("a rule mismatch must be refused"),
+    }
+}
+
+#[test]
+fn a_macrocell_with_no_nodes_is_refused() {
+    let text = "[M2] (golly 2.0)\n#C nothing here\n";
+    match HashLife::from_macrocell(text, Rule::life(), 4096) {
+        Err(MacrocellError::Syntax { message, .. }) => {
+            assert!(message.contains("no nodes"), "got {message}")
+        }
+        Err(other) => panic!("unexpected error {other:?}"),
+        Ok(_) => panic!("an empty file must be refused"),
+    }
 }
 
 #[test]

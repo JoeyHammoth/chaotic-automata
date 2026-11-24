@@ -4,6 +4,7 @@
 
 import { parseRule, type Rule } from '../../engine';
 import { ruleMask } from '../../engine/lib/rule';
+import { macrocellRule } from './macrocell';
 import type { Pattern } from './rle';
 
 export interface HashLife {
@@ -30,6 +31,7 @@ interface Exports {
   memory: WebAssembly.Memory;
   hl_input(len: number): number;
   hl_load(mask: number, width: number, height: number): number;
+  hl_load_macrocell(mask: number, len: number): number;
   hl_step(generations: number): number;
   hl_generation(): number;
   hl_population(): number;
@@ -92,6 +94,11 @@ export async function createHashLife(pattern: Pattern): Promise<HashLife> {
     );
   }
 
+  return bind(exports, rule);
+}
+
+/** The same handle for either loader: the tree lives in the module, the page reads it in place. */
+function bind(exports: Exports, rule: Rule): HashLife {
   return {
     rule,
     generation: () => exports.hl_generation(),
@@ -120,4 +127,45 @@ export async function createHashLife(pattern: Pattern): Promise<HashLife> {
       return new Uint8Array(exports.memory.buffer, pointer, cells * cells).slice();
     },
   };
+}
+
+/**
+ * Build the tree from a Golly macrocell (M2) without materialising a grid.
+ *
+ * The array exhibit is why this exists: four metapixels are 6154x6154 cells, 38 MB as a byte grid
+ * and about a tenth of that as a macrocell. The reader is in `ca-core`, next to the tree it builds,
+ * so the text goes into the module's memory and the tree comes out; the page never flattens the
+ * file only for the loader to rebuild it.
+ */
+export async function createHashLifeFromMacrocell(text: string): Promise<HashLife> {
+  const exports = await loadModule();
+  if (!exports) {
+    throw new Error(
+      'the HashLife module did not load. Run `npm run build:wasm` so the page has a module with ' +
+        'the zoom exports.',
+    );
+  }
+  if (typeof exports.hl_load_macrocell !== 'function') {
+    throw new Error(
+      'this module was built before the macrocell loader. Run `npm run build:wasm` and reload.',
+    );
+  }
+  const named = macrocellRule(text);
+  const rule = parseRule(named ?? 'B3/S23');
+  const bytes = new TextEncoder().encode(text);
+  const pointer = exports.hl_input(bytes.length);
+  if (pointer === 0) {
+    throw new Error(
+      `the module could not allocate ${bytes.length.toLocaleString('en-US')} bytes for this ` +
+        'macrocell',
+    );
+  }
+  new Uint8Array(exports.memory.buffer, pointer, bytes.length).set(bytes);
+  if (exports.hl_load_macrocell(ruleMask(rule), bytes.length) !== 1) {
+    throw new Error(
+      'the engine refused this macrocell: it is not an M2 file this reader accepts, or the tree ' +
+        `needs more than the ${exports.hl_cap().toLocaleString('en-US')} nodes this page allows`,
+    );
+  }
+  return bind(exports, rule);
 }

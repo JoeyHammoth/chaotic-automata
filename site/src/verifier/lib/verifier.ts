@@ -65,6 +65,8 @@ export interface CryptidSample {
   steps: number;
   span: number;
   drift: number;
+  /** Span gained since the previous sample: where the growth is, decade by decade. */
+  delta?: number;
 }
 
 export interface CryptidTrace {
@@ -91,7 +93,7 @@ export interface Cryptid {
   certificate: Certificate | null;
   checker: 'accepted' | 'refused' | null;
   reason: string | null;
-  /** A million-step walk on the array tape: still not a verdict, but the shape of the walk. */
+  /** A hundred-million-step walk on the array tape: still not a verdict, but the shape of the walk. */
   trace: CryptidTrace;
 }
 
@@ -100,6 +102,9 @@ export interface VerifierProduct {
   generated_by: string;
   seed: number;
   cap: number;
+  /** The trace budget: a hundred million transitions, recorded so the chart can say so. */
+  cryptid_steps?: number;
+  cryptid_samples?: number[];
   check_every: number;
   heuristic_span: number;
   bouncer_span: number;
@@ -177,7 +182,7 @@ export interface TraceChart {
 /**
  * Geometry for a cryptid's growth chart: steps across on a log axis, span up.
  *
- * A log axis is the honest one — the samples are decades apart, so on a linear axis three of the four
+ * A log axis is the honest one — the samples are decades apart, so on a linear axis five of the six
  * points pile up against the left edge. The chart carries its numbers in an aria-label and the
  * sentence stays beside it, so the picture is an addition to the words, never a replacement.
  */
@@ -195,12 +200,27 @@ export function cryptidTraceChart(trace: CryptidTrace, width = 132, height = 44)
     steps: sample.steps,
     span: sample.span,
   }));
+  // The steepest decade, so the picture says where the growth is and not only that there is some.
+  const fastest = samples.slice(1).reduce<{ from: number; to: number; delta: number } | null>(
+    (best, sample, index) => {
+      const previous = samples[index] as CryptidSample;
+      const delta = sample.delta ?? sample.span - previous.span;
+      return best === null || delta > best.delta
+        ? { from: previous.steps, to: sample.steps, delta }
+        : best;
+    },
+    null,
+  );
   const label =
     first === undefined || last === undefined
       ? `no growth recorded over ${trace.steps.toLocaleString('en-US')} steps`
       : `span grows from ${first.span.toLocaleString('en-US')} cells at ` +
         `${first.steps.toLocaleString('en-US')} steps to ${last.span.toLocaleString('en-US')} at ` +
-        `${last.steps.toLocaleString('en-US')} steps`;
+        `${last.steps.toLocaleString('en-US')} steps` +
+        (fastest === null || fastest.delta <= 0
+          ? ''
+          : `; the span grows fastest between ${fastest.from.toLocaleString('en-US')} and ` +
+            `${fastest.to.toLocaleString('en-US')} steps (+${fastest.delta.toLocaleString('en-US')})`);
   return { points, maxSpan, label };
 }
 

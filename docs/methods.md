@@ -336,12 +336,14 @@ criterion is met exactly for still lifes and as the engine's own count elsewhere
 cross-checked against the reference over long runs.
 
 **The zoom UI.** `crates/ca-wasm` exposes the tree itself: `hl_input` and `hl_load` for a pattern,
-`hl_step` for the variable time step, `hl_view` for a level-of-detail window in which each byte is
-the population of the node that pixel covers, and the node count, cap and cap hits for the gauge.
-The page renders at level `floor(log2(cells per pixel))`, so a node smaller than a pixel draws as
-its density and a metapixel-sized pattern stays legible when zoomed out. The module's node cap is
-4,194,304; the 2×2 metapixel array uses 987,560 of them and about 102 MB of module memory, and the
-gauge shows that fraction, so the heaviest exhibit states its cost instead of hiding it.
+`hl_load_macrocell` for a Golly file, `hl_step` for the variable time step, `hl_view` for a
+level-of-detail window in which each byte is the population of the node that pixel covers, and the
+node count, cap and cap hits for the gauge. The page renders at level `floor(log2(cells per pixel))`,
+so a node smaller than a pixel draws as its density and a metapixel-sized pattern stays legible when
+zoomed out. The module's node cap is 4,194,304; the 2×2 metapixel array uses 987,560 of them. Read as
+a macrocell it costs about 69 MB of module memory, against the 102 MB measured when the same tree
+was loaded from a cell grid — the grid alone is 38 MB of bytes the tree does not need. The gauge
+shows the fraction used, so the heaviest exhibit states its cost instead of hiding it.
 
 Spacing the four copies one 4096-square apart is what halves that. Edge to edge, copies of a
 2058-cell unit cell sit at different phases of the quadtree — 2058 is not a power of two — so no
@@ -358,7 +360,10 @@ bytes a slot against a `HashMap` entry's 24, about 8 MB on the array instead of 
 a node's level, so dropping the level from the key is sound, and
 `the_index_finds_every_interned_node` is the check: it walks every node after sixteen generations and
 demands each one back from the index, which fails if two nodes ever shared a key. The array went from
-279 MB to 102 MB with the node count unchanged at 987,560.
+279 MB to 102 MB with the node count unchanged at 987,560. `memory_bytes` reports what the arena and
+the index hold, and `a_node_and_its_index_slot_cost_at_most_forty_bytes` pins it at forty bytes a node
+or fewer — thirty-two for the node, the rest index slots — over a 64×64 soup stepped 32 generations,
+so a field added to `Node` or a key put back into the index fails a test rather than a paragraph.
 
 **The writer.** `writeMacrocell` emits the same M2 format the reader accepts, and the tests
 round-trip the whole 2058-square metapixel through it cell for cell (2.4 s, 30k nodes). The leaf
@@ -367,21 +372,28 @@ by the IOCCC 2019 entry *dogon* (`ioccc-src/winner`, `2019/dogon/glider.mc`) —
 Golly-written `.mc` reachable from here — and assert that our writer produces that leaf byte for
 byte, and that our reader turns Golly's file back into the glider it drew. Golly's file differs from
 ours only in its `#C` comment and the extra root node it pads the pattern into, which records where
-the pattern sat in its universe and not a difference in the format. The step control offers
+the pattern sat in its universe and not a difference in the format. The writer canonicalises the
+rule string, because the published metapixel RLE spells it `b3/s23` and a macrocell is read by
+programs that expect `B3/S23`; the engine's reader refuses a `#R` that disagrees with the rule it was
+opened with, rather than drawing the pattern under a rule the file did not name. The step control offers
 powers of two because a compressed step is one, the tree view reports nodes against `4^level`
 nominal cells, and the URL carries the pattern, generation, scale and origin, so a view is
 shareable.
 
-RLE and macrocell are both parsed in the page and written straight into the module's memory. Four
-pattern files ship as fixtures and are asserted cell-for-cell by the tests: the Gosper glider gun
-(36 cells), Riley's breeder (38 cells in 135×41, quadratic growth), a glider written as a macrocell
-leaf and as a two-level tree, and the OTCA metapixel — Brice Due's 2058×2058 unit cell with 64,691
-live cells, quoted from the LifeWiki pattern collection. The page also offers the metapixel tiled
-2×2 (4116×4116, 258,764 cells, each quadrant verified to be one intact copy), which is the array the
-nested-structure zoom is about: at 640 pixels across 4116 cells a pixel covers a node, so four
-metapixels read as four densities and zooming in resolves each one into its own structure. Tiling is
-done in the importer rather than baked into a fixture, so the source pattern stays the one that was
-published.
+RLE is parsed in the page and written straight into the module's memory; a macrocell is not
+flattened at all. The reader lives beside the tree in `crates/ca-core/src/hashlife.rs` and
+`hl_load_macrocell` takes the text, so the file's own quadtree becomes the engine's — the array is
+38 MB as a byte grid and 1.7 MB as an M2 file. Two pattern files ship as fixtures and are asserted
+cell for cell by the tests: the Gosper glider gun (36 cells) and Riley's breeder (38 cells in 135×41,
+quadratic growth), with the OTCA metapixel — Brice Due's 2058×2058 unit cell of 64,691 live cells,
+quoted from the LifeWiki pattern collection — tiled into the 2×2 array the nested-structure zoom is
+about. The array is 6154×6154 with 258,764 cells, one copy per 4096-square; at 640 pixels across
+6154 cells a pixel covers a node, so four metapixels read as four densities and zooming in resolves
+each one into its own structure. The array's macrocell is generated at build time from the published
+RLE (`npm run build:fixtures`), which keeps the published pattern the source of truth and keeps
+derived text out of the repository. The reader is pinned to the grid loader rather than trusted: a
+Golly glider through both paths builds the same arena node for node, and the page's own test pins the
+array at the 987,560 nodes the grid path built.
 
 ## M4 · Stress Lab
 
@@ -596,12 +608,17 @@ one. The page says in the same row that the run proves nothing about halting, be
 quoted precisely because nobody knows. This is an exhibit of the classification, not a search: the
 six-state space is not enumerable here, and nothing in the product counts a cryptid as decided.
 
-**The growth is measured, and drawn.** Each cryptid also runs for a million transitions on the array
-tape, sampling the written span at 10³, 10⁴, 10⁵ and 10⁶ steps: 1,554, 1,383, 2,220 and 304 cells at
-the last sample, none of them halted. The row draws the span against a log step axis and carries the
-same numbers in its `aria-label`, so the chart adds a picture to the sentence rather than replacing
-it — a reader without the chart still gets every number. Growth is the shape of the walk and not a
-proof: the sentence beside the chart still says a million steps decide nothing.
+**The growth is measured, and drawn.** Each cryptid also runs for a hundred million transitions on
+the array tape, sampling the written span at each decade from 10³ to 10⁸: 15,454, 14,148, 25,756 and
+1,663 cells at the last sample, and none of them halted. Each sample also records the span it gained
+since the one before, so the row can say where the growth is and not only that there is some: the
+fastest decade is the last for all four (+10,560, +9,715, +17,832 and +860 cells). The row draws the
+span against a log step axis and carries the same numbers in its `aria-label`, including that fastest
+decade, so the chart adds a picture to the sentence rather than replacing it — a reader without the
+chart still gets every number. Growth is the shape of the walk and not a proof: the sentence beside
+the chart still says a hundred million steps decide nothing. The budget is written into the product
+(`cryptid_steps`, `cryptid_samples`) so the figure cannot outlive the run that produced it, and a
+machine that halts inside the budget is recorded as halted rather than as growth.
 
 What is not claimed: the checker is a second implementation, not a proof, and it says only "this
 certificate replays". BB(5) is quoted from the paper, not re-proved here; the four-state sweep is
