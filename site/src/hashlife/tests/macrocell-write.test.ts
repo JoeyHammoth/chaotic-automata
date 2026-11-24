@@ -22,7 +22,12 @@ function differences(a: Uint8Array, b: Uint8Array): number {
 // 2019/dogon/glider.mc in github.com/ioccc-src/winner. It is the only genuine Golly-written
 // macrocell this project has — conwaylife.com refuses automated fetches — so it is the reference
 // for the leaf format, and it is what makes "Golly-compatible" a claim rather than a hope.
-const GOLDEN = readFileSync(new URL('./golden/glider.mc', import.meta.url), 'utf8');
+// Normalised because a Windows checkout may hand back CRLF; `.gitattributes` pins LF, and this keeps
+// the assertion honest even where the attribute is ignored. The bytes compared are Golly's.
+const GOLDEN = readFileSync(new URL('./golden/glider.mc', import.meta.url), 'utf8').replace(
+  /\r\n/g,
+  '\n',
+);
 
 /** The glider of `glider.mc`, at the offset Golly drew it: (2, 2) inside the leaf. */
 function goldenGlider(): { width: number; height: number; cells: Uint8Array } {
