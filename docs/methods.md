@@ -331,9 +331,23 @@ reason is the tree rather than the rule: a compressed step is only usable when t
 fits inside the centre half of its root, and a 128-wide chaotic soup fits nothing above a single
 generation, so `step` falls back to the sparse sweep.
 
-Not yet done, and therefore not claimed: Golly-captured golden generations and the zoom UI. The
-population criterion is met exactly for still lifes and as the engine's own count elsewhere — it is
-not yet cross-checked against the reference over long runs.
+Not yet done, and therefore not claimed: Golly-captured golden generations. The population
+criterion is met exactly for still lifes and as the engine's own count elsewhere — it is not yet
+cross-checked against the reference over long runs.
+
+**The zoom UI.** `crates/ca-wasm` exposes the tree itself: `hl_input` and `hl_load` for a pattern,
+`hl_step` for the variable time step, `hl_view` for a level-of-detail window in which each byte is
+the population of the node that pixel covers, and the node count, cap and cap hits for the gauge.
+The page renders at level `floor(log2(cells per pixel))`, so a node smaller than a pixel draws as
+its density and a metapixel-sized pattern stays legible when zoomed out. The step control offers
+powers of two because a compressed step is one, the tree view reports nodes against `4^level`
+nominal cells, and the URL carries the pattern, generation, scale and origin, so a view is
+shareable.
+
+RLE and macrocell are both parsed in the page and written straight into the module's memory. Import
+is tested on the Gosper glider gun (RLE) and on a glider written as a macrocell leaf and as a
+two-level tree. A breeder and the OTCA metapixel are **not** shipped as fixtures, so importing those
+two patterns is not claimed.
 
 ## M4 · Stress Lab
 
