@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Computation Atlas — Verifier</title>
+    <meta
+      name="description"
+      content="Untrusted deciders emit certificates, an independent checker replays them, and the undecided residue is shown rather than hidden. Busy beaver values are reproduced up to four states and quoted for five."
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Verifier</h1>
+        <p class="lede">
+          A decider is a guess with a receipt. The cycler, the translated cycler and the bouncer all
+          propose a certificate, and a separate checker — its own parser, its own stepper, no shared
+          code — either replays it and accepts, or refuses it. A machine that reaches the cap with
+          no accepted certificate is <strong>not</strong> called non-halting: it is either
+          heuristically non-halting (it looks trapped, and that is all) or undecided.
+        </p>
+      </header>
+
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <section class="panel" aria-labelledby="residue-heading">
+        <h2 id="residue-heading">The residue comes first</h2>
+        <p id="residue" class="readout" aria-live="polite">loading the product…</p>
+        <p id="residue-note" class="status"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="bb-heading">
+        <h2 id="bb-heading">Busy beaver values</h2>
+        <p class="lede">
+          The search is exhaustive over every machine in tree normal form: renaming states, swapping
+          the two symbols and mirroring the tape cannot change the halting time, so one
+          representative per machine is enough. <code>S(5)</code> is quoted from the proof and not
+          re-proved here; its champion's step count <em>is</em> re-run, because a step count is
+          something this pipeline can check.
+        </p>
+        <table class="data">
+          <caption id="bb-caption">Machines searched, and how each was classified.</caption>
+          <thead>
+            <tr>
+              <th scope="col">states</th>
+              <th scope="col">S(n) quoted</th>
+              <th scope="col">reproduced</th>
+              <th scope="col">machines</th>
+              <th scope="col">halts</th>
+              <th scope="col">certified</th>
+              <th scope="col">heuristic</th>
+              <th scope="col">undecided</th>
+            </tr>
+          </thead>
+          <tbody id="bb-table"></tbody>
+        </table>
+        <div id="champion" class="claim"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="labelled-heading">
+        <h2 id="labelled-heading">The labelled set</h2>
+        <p class="lede">
+          One machine per verdict class, taken from the search. Certified verdicts carry a
+          certificate the checker accepted; heuristic ones carry none, because the checker refused
+          the guess. Colour is never the only cue: each class has its own symbol and its own words.
+        </p>
+        <table class="data">
+          <caption>
+            One machine per class, with the checker's verdict on its certificate.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">machine</th>
+              <th scope="col">states</th>
+              <th scope="col">class</th>
+              <th scope="col">steps</th>
+              <th scope="col">checker</th>
+            </tr>
+          </thead>
+          <tbody id="labelled-table"></tbody>
+        </table>
+        <p id="symbol-legend" class="status">
+          ● halts · ◆ certified non-halting · ■ heuristic, refused by the checker · ▲ undecided
+        </p>
+      </section>
+
+      <section class="panel" aria-labelledby="certificate-heading">
+        <h2 id="certificate-heading">Read a certificate</h2>
+        <div class="controls">
+          <label for="certificate-select">Machine</label>
+          <select id="certificate-select"></select>
+        </div>
+        <p id="certificate-summary" class="readout" aria-live="polite"></p>
+        <pre id="certificate-json" class="certificate"></pre>
+        <p id="certificate-check" class="status"></p>
+        <table class="data">
+          <caption>
+            The same certificate with one thing changed: what the checker must refuse.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">mutation</th>
+              <th scope="col">checker</th>
+              <th scope="col">reason</th>
+            </tr>
+          </thead>
+          <tbody id="mutation-table"></tbody>
+        </table>
+      </section>
+
+      <section class="panel" aria-labelledby="claims-heading">
+        <h2 id="claims-heading">What is claimed, and on what</h2>
+        <ul id="claims" class="claims"></ul>
+      </section>
+
+      <p class="status" id="status" aria-live="polite"></p>
+      <p class="status">
+        <a href="/">Back to the atlas</a> · <a href="/inspector.html">Inspector</a> ·
+        <a href="/stress.html">Stress Lab</a>
+      </p>
+    </main>
+
+    <script type="module" src="/src/verifier/main.ts"></script>
+  </body>
+</html>

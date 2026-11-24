@@ -15,7 +15,7 @@ if (!existsSync(resolve(source, 'atlas', 'manifest.json'))) {
 }
 
 mkdirSync(target, { recursive: true });
-for (const name of ['atlas', 'sample', 'inspector', 'stress', 'noise']) {
+for (const name of ['atlas', 'sample', 'inspector', 'stress', 'noise', 'verifier']) {
   const from = resolve(source, name);
   if (existsSync(from)) cpSync(from, resolve(target, name), { recursive: true });
 }

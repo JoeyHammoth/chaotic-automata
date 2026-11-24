@@ -526,6 +526,37 @@ are never collapsed.
 Machine strings are taken from the bbchallenge wiki and checked there before use — the Antihydra
 string quoted in the design document is unverified and must be confirmed.
 
+**As implemented.** `src/computation_atlas/verifier.py` holds the deciders and the search,
+`src/computation_atlas/checker.py` the checker: its own parser and its own stepper, no import from
+the decider module, so a bug in one cannot hide in the other. The search enumerates machines in
+define-on-visit tree normal form — the first transition is fixed to `1RB` and every state is
+introduced the first time it is reached — which is 166 two-state, 20,686 three-state and 3,495,618
+four-state machines. Over those it reproduces `S(2)=6`, `S(3)=21` and `S(4)=107`; the champion
+`1RB1LC_1RC1RB_1RD0LE_1LA1LD_---0LA` halts after 47,176,870 steps.
+
+Every machine lands in exactly one class, and the product records the counts. At four states:
+735,932 halt, 513,705 are certified, 1,162,121 are heuristic and 1,083,860 are undecided. At two:
+60 / 31 / 13 / 62, at three: 5,516 / 3,533 / 4,640 / 6,997. A verdict is *certified* only when the
+checker accepted the certificate; a *heuristic* guess carries no certificate and is never promoted
+to one, so it stays visibly weaker. *Undecided* means the 256-step cap was reached with a written
+span wider than 64 — it is a limit of this search, never a claim that the machine runs forever. A
+bouncer is counted as the confined subset of the cycler (span at most 8) rather than as a fourth
+verdict, because every exact cycle in this space is narrow.
+
+Two things the checker caught in the deciders, both fixed rather than suppressed: a `start` recorded
+at the wrong step, so the two configurations compared were one transition apart, and a bounded
+certificate for a machine marching right forever. It also forced a third correction: a cycle
+certificate must name the *smallest* period, since a multiple of the true period replays just as
+well and would certify nothing. The labelled set (seed 97, fifteen machines spanning all three
+kinds) has every certificate accepted and every mutation refused — a step count off by one, a
+shift off by one, a period off by one, and a kind relabelled as a translation. A shifted start is
+not among the mutations: a true cycle is true from any phase, so that mutation would have been a
+test of nothing.
+
+What is not claimed: the checker is a second implementation, not a proof, and it says only "this
+certificate replays". BB(5) is quoted from the paper, not re-proved here; the four-state sweep is
+this project's own, and its undecided residue is reported as it stands.
+
 ## M7 · Heritage
 
 The original sandpile lab's least-squares fit on raw counts is biased by the tail floor at count 1
