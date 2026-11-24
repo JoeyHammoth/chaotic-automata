@@ -343,7 +343,10 @@ so a node smaller than a pixel draws as its density and a metapixel-sized patter
 zoomed out. The module's node cap is 4,194,304; the 2×2 metapixel array uses 987,560 of them. Read as
 a macrocell it costs about 69 MB of module memory, against the 102 MB measured when the same tree
 was loaded from a cell grid — the grid alone is 38 MB of bytes the tree does not need. The gauge
-shows the fraction used, so the heaviest exhibit states its cost instead of hiding it.
+shows the fraction used, so the heaviest exhibit states its cost instead of hiding it. The module
+runs in a worker, so the array's six-second load blocks that thread rather than the page: the
+readout, each step and each window are messages, and the tree never leaves the worker's memory. The
+reader's own cost against the grid loader is measured in `docs/performance.md`.
 
 Spacing the four copies one 4096-square apart is what halves that. Edge to edge, copies of a
 2058-cell unit cell sit at different phases of the quadtree — 2058 is not a power of two — so no
@@ -608,17 +611,19 @@ one. The page says in the same row that the run proves nothing about halting, be
 quoted precisely because nobody knows. This is an exhibit of the classification, not a search: the
 six-state space is not enumerable here, and nothing in the product counts a cryptid as decided.
 
-**The growth is measured, and drawn.** Each cryptid also runs for a hundred million transitions on
-the array tape, sampling the written span at each decade from 10³ to 10⁸: 15,454, 14,148, 25,756 and
-1,663 cells at the last sample, and none of them halted. Each sample also records the span it gained
-since the one before, so the row can say where the growth is and not only that there is some: the
-fastest decade is the last for all four (+10,560, +9,715, +17,832 and +860 cells). The row draws the
-span against a log step axis and carries the same numbers in its `aria-label`, including that fastest
-decade, so the chart adds a picture to the sentence rather than replacing it — a reader without the
-chart still gets every number. Growth is the shape of the walk and not a proof: the sentence beside
-the chart still says a hundred million steps decide nothing. The budget is written into the product
-(`cryptid_steps`, `cryptid_samples`) so the figure cannot outlive the run that produced it, and a
-machine that halts inside the budget is recorded as halted rather than as growth.
+**The growth is measured, and drawn.** Each cryptid also runs for a billion transitions on the array
+tape, sampling the written span at each decade from 10³ to 10⁹: 48,827, 44,298, 105,360 and 3,248
+cells at the last sample, and none of them halted. Each sample also records the span it gained since
+the one before, so the row can say where the growth is and not only that there is some: the fastest
+decade is the last for all four (+33,373, +30,150, +79,604 and +1,585 cells). The gain is about three
+times the previous decade's for the first three and nearly twice for Space Needle, so nothing has
+levelled off inside the budget — which is a statement about a billion steps and not about halting.
+The row draws the span against a log step axis and carries the same numbers in its `aria-label`,
+including that fastest decade, so the chart adds a picture to the sentence rather than replacing it —
+a reader without the chart still gets every number. Growth is the shape of the walk and not a proof:
+the sentence beside the chart still says a billion steps decide nothing. The budget is written into
+the product (`cryptid_steps`, `cryptid_samples`) so the figure cannot outlive the run that produced
+it, and a machine that halts inside the budget is recorded as halted rather than as growth.
 
 What is not claimed: the checker is a second implementation, not a proof, and it says only "this
 certificate replays". BB(5) is quoted from the paper, not re-proved here; the four-state sweep is

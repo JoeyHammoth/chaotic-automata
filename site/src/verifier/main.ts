@@ -93,7 +93,7 @@ function renderLabelled(product: VerifierProduct): void {
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** The span over a hundred million steps, drawn small. The sentence beside it carries the numbers. */
+/** The span over a billion steps, drawn small. The sentence beside it carries the numbers. */
 function traceChart(trace: CryptidTrace): SVGSVGElement {
   const chart = cryptidTraceChart(trace);
   const svg = document.createElementNS(SVG, 'svg');

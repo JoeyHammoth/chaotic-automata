@@ -44,13 +44,22 @@ QUOTED = {2: 6, 3: 21, 4: 107, 5: CHAMPION_STEPS}
 
 CRYPTID_SOURCE = "https://wiki.bbchallenge.org/wiki/Cryptids"
 
-# A 256-step cap says nothing about a cryptid, so the exhibit also runs each one for a hundred
-# million transitions on the array tape and records how far it got at each decade. That is still not
-# a verdict — it is the shape of the walk, which is the thing a reader can actually see. A hundred
-# million is a budget, not a bound: a machine that has not halted by then is undecided at this
-# budget, exactly as it is at 256.
-CRYPTID_STEPS = 100_000_000
-CRYPTID_SAMPLES = (1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000)
+# A 256-step cap says nothing about a cryptid, so the exhibit also runs each one for a billion
+# transitions on the array tape and records how far it got at each decade. That is still not a
+# verdict — it is the shape of the walk, which is the thing a reader can actually see. A billion is
+# a budget, not a bound: a machine that has not halted by then is undecided at this budget, exactly
+# as it is at 256. The last decade is the interesting one, because growth that is still accelerating
+# at the end of the budget is a different claim from growth that has settled.
+CRYPTID_STEPS = 1_000_000_000
+CRYPTID_SAMPLES = (
+    1_000,
+    10_000,
+    100_000,
+    1_000_000,
+    10_000_000,
+    100_000_000,
+    1_000_000_000,
+)
 
 # Machines whose halting problem is tied to an open problem, quoted from the bbchallenge wiki. They
 # are exhibits, not a search: the 256-step cap says nothing about any of them, and the page says so.
@@ -524,7 +533,7 @@ CLAIMS = [
 def cryptid_trace(machine: Machine, steps: int = CRYPTID_STEPS) -> dict:
     """Walk a machine for `steps` transitions on an array tape and sample how far it has spread.
 
-    The dict tape the deciders use is far too slow for a hundred million steps and too heavy for a
+    The dict tape the deciders use is far too slow for a billion steps and too heavy for a
     machine that wanders; this is the same walk as `steps_to_halt` with the span recorded at the
     sample points. Each sample also carries the span it *gained* since the one before it, which is
     where the growth is, decade by decade.
