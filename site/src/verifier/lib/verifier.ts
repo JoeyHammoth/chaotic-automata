@@ -61,6 +61,18 @@ export interface Champion {
   source: string;
 }
 
+export interface CryptidSample {
+  steps: number;
+  span: number;
+  drift: number;
+}
+
+export interface CryptidTrace {
+  halted: boolean;
+  steps: number;
+  samples: CryptidSample[];
+}
+
 export interface Cryptid {
   name: string;
   string: string;
@@ -79,6 +91,8 @@ export interface Cryptid {
   certificate: Certificate | null;
   checker: 'accepted' | 'refused' | null;
   reason: string | null;
+  /** A million-step walk on the array tape: still not a verdict, but the shape of the walk. */
+  trace: CryptidTrace;
 }
 
 export interface VerifierProduct {
@@ -129,6 +143,21 @@ export function cryptidSummary(cryptid: Cryptid): { verdict: string; proves: str
       'nothing about halting: the cap is 256 steps and this machine is quoted precisely because ' +
       'nobody knows whether it halts',
   };
+}
+
+/**
+ * The growth of a cryptid's written tape, sampled over the long run. A reader can see that the span
+ * keeps growing without a repeat, which is the whole reason the machine is a cryptid — and it is
+ * still not a proof that it never halts.
+ */
+export function cryptidTraceLine(trace: CryptidTrace): string {
+  const steps = trace.steps.toLocaleString('en-US');
+  if (trace.halted) return `halted at step ${steps}`;
+  if (trace.samples.length === 0) return `no halt in ${steps} steps`;
+  const points = trace.samples
+    .map((sample) => `${sample.span.toLocaleString('en-US')} at ${sample.steps.toLocaleString('en-US')}`)
+    .join(', ');
+  return `no halt in ${steps} steps; span ${points}`;
 }
 
 export function formatSteps(steps: number | null): string {

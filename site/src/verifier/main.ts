@@ -5,6 +5,7 @@ import {
   certificateSummary,
   checkSummary,
   cryptidSummary,
+  cryptidTraceLine,
   formatSteps,
   loadVerifier,
   residue,
@@ -101,7 +102,7 @@ function renderCryptids(product: VerifierProduct): void {
     machine.className = 'certificate';
     machine.textContent = cryptid.string;
     const mine = document.createElement('td');
-    mine.textContent = `${summary.verdict} — ${summary.proves}`;
+    mine.textContent = `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.`;
     row.append(
       name,
       cell(cryptid.domain),

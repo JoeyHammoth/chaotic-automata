@@ -54,8 +54,10 @@ test('a breeder and a metapixel array load from their published pattern files', 
   await expect(status).toContainText("Riley's_breeder");
 
   await pattern.selectOption('metapixelArray');
-  await expect(status).toContainText('4116×4116', { timeout: 40_000 });
+  await expect(status).toContainText('6154×6154', { timeout: 40_000 });
   await expect(status).toContainText('258,764 live cells');
+  // Spaced one 4096-square apart, the four copies are one shared subtree rather than four.
+  await expect(page.locator('#tree-table')).toContainText('nodes');
 
   // Zoomed out, four metapixels are nodes rather than cells.
   for (let i = 0; i < 8; i++) await page.getByRole('button', { name: 'Zoom out' }).click();

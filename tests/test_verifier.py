@@ -113,6 +113,14 @@ def test_the_cryptids_are_quoted_verbatim_and_left_undecided(document):
         assert entry["verdict"] != "certified"
         assert entry["certificate"] is None
         assert entry["checker"] is None
+        # The long run is a measurement of growth, and it is recorded as one.
+        trace = entry["trace"]
+        assert trace["halted"] is False
+        assert trace["steps"] == verifier.CRYPTID_STEPS
+        assert [sample["steps"] for sample in trace["samples"]] == list(verifier.CRYPTID_SAMPLES)
+        spans = [sample["span"] for sample in trace["samples"]]
+        assert spans == sorted(spans), "the written tape never shrank over the run"
+        assert spans[-1] > spans[0], "a cryptid's span grows; a flat one is not a cryptid"
 
 
 def test_every_labelled_certificate_is_accepted_and_every_mutation_refused(document):

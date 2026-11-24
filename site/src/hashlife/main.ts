@@ -6,7 +6,7 @@
 // engine's counts, not estimates: a page that guessed them would be lying about the compression.
 
 import { looksLikeMacrocell, parseMacrocell } from './lib/macrocell';
-import { PatternError, parseRle, population, tile, type Pattern } from './lib/rle';
+import { PatternError, parseRle, population, spread, type Pattern } from './lib/rle';
 import {
   cellsPerPixel,
   clampView,
@@ -50,9 +50,9 @@ const FIXTURES: Record<string, Fixture> = {
   metapixelArray: {
     file: 'fixtures/otcametapixel.rle',
     label: 'OTCA metapixel, 2x2 array',
-    // 2,307,268 nodes and about 590 MB of module memory: the heaviest thing here, and the gauge
-    // says so. The copies cannot share subtrees because 2058 is not a power of two.
-    source: 'four copies of the OTCA metapixel, tiled 2x2 — 2.3M nodes, ~590 MB of memory',
+    // One copy per 4096-square, so the four copies are the same subtree and the tree shares them.
+    // Edge to edge they cannot share — 2058 is not a power of two — and cost 2.3M nodes and 590 MB.
+    source: 'four copies of the OTCA metapixel, one per 4096-square: 987,560 nodes, ~279 MB',
     tiles: 2,
   },
 };
@@ -219,7 +219,7 @@ async function choosePattern(name: string): Promise<void> {
     if (!response.ok) throw new PatternError(`the pattern file is missing (${response.status})`);
     const text = await response.text();
     let pattern = looksLikeMacrocell(text) ? parseMacrocell(text) : parseRle(text);
-    if (fixture.tiles !== undefined) pattern = tile(pattern, fixture.tiles, fixture.tiles);
+    if (fixture.tiles !== undefined) pattern = spread(pattern, fixture.tiles, fixture.tiles);
     await load(pattern, name);
     element('status').textContent += ` Source: ${fixture.source}.`;
   } catch (error) {

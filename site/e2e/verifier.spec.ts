@@ -38,6 +38,9 @@ test('a cryptid is shown with its string and without a verdict', async ({ page }
   await expect(table).toContainText('1RB1RA_0LC1LE_1LD1LC_1LA0LB_1LF1RE_---0RA');
   await expect(table).toContainText('probviously non-halting');
   await expect(table).toContainText('nothing about halting');
+  // The long run is shown as growth, not as a verdict.
+  await expect(table).toContainText('no halt in 1,000,000 steps');
+  await expect(table).toContainText('span');
   await expect(page.locator('#cryptid-note')).toContainText('not evidence');
 });
 

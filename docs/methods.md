@@ -340,8 +340,21 @@ cross-checked against the reference over long runs.
 the population of the node that pixel covers, and the node count, cap and cap hits for the gauge.
 The page renders at level `floor(log2(cells per pixel))`, so a node smaller than a pixel draws as
 its density and a metapixel-sized pattern stays legible when zoomed out. The module's node cap is
-4,194,304; the metapixel array uses 2,307,268 of them and about 590 MB of module memory, and the
-gauge shows that fraction, so the heaviest exhibit states its cost instead of hiding it. The step control offers
+4,194,304; the 2×2 metapixel array uses 987,560 of them and about 279 MB of module memory, and the
+gauge shows that fraction, so the heaviest exhibit states its cost instead of hiding it.
+
+Spacing the four copies one 4096-square apart is what halves that. Edge to edge, copies of a
+2058-cell unit cell sit at different phases of the quadtree — 2058 is not a power of two — so no
+subtree is ever equal and the array costs 2,307,268 nodes and about 590 MB. At a power-of-two
+spacing the quadrants do match, but only partly: the engine centres every pattern in its root, so
+two copies still share a quadrant and the saving is 2.4× rather than the 4× a perfect alignment
+would give. Both numbers are measured against the built module, not estimated.
+
+**The writer.** `writeMacrocell` emits the same M2 format the reader accepts, and the tests
+round-trip the whole 2058-square metapixel through it cell for cell (2.4 s, 30k nodes). That writer
+is this project's export, not Golly's: conwaylife.com refuses automated fetches and no reachable
+mirror carries the `.mc`, so the genuine Golly artefact in the tests remains the leaf quoted in its
+documentation. Saying otherwise would be the sort of claim this page exists to avoid. The step control offers
 powers of two because a compressed step is one, the tree view reports nodes against `4^level`
 nominal cells, and the URL carries the pattern, generation, scale and origin, so a view is
 shareable.

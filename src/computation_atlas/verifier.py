@@ -44,6 +44,12 @@ QUOTED = {2: 6, 3: 21, 4: 107, 5: CHAMPION_STEPS}
 
 CRYPTID_SOURCE = "https://wiki.bbchallenge.org/wiki/Cryptids"
 
+# A 256-step cap says nothing about a cryptid, so the exhibit also runs each one for a million
+# transitions on the array tape and records how far it got. That is still not a verdict — it is the
+# shape of the walk, which is the thing a reader can actually see.
+CRYPTID_STEPS = 1_000_000
+CRYPTID_SAMPLES = (1_000, 10_000, 100_000, 1_000_000)
+
 # Machines whose halting problem is tied to an open problem, quoted from the bbchallenge wiki. They
 # are exhibits, not a search: the 256-step cap says nothing about any of them, and the page says so.
 CRYPTIDS = [
@@ -513,6 +519,40 @@ CLAIMS = [
 ]
 
 
+def cryptid_trace(machine: Machine, steps: int = CRYPTID_STEPS) -> dict:
+    """Walk a machine for `steps` transitions on an array tape and sample how far it has spread.
+
+    The dict tape the deciders use is too slow for a million steps and too heavy for a machine that
+    wanders; this is the same walk as `steps_to_halt` with the span recorded at the sample points.
+    """
+    write, move, nxt = machine.write, machine.move, machine.nxt
+    tape = bytearray(1 << 12)
+    head = 1 << 11
+    state = 0
+    low = high = head
+    wanted = sorted(set(CRYPTID_SAMPLES) | {steps})
+    samples: list[dict] = []
+    index = 0
+    for step in range(steps):
+        i = state + state + tape[head]
+        if write[i] == HALT or nxt[i] == HALT:
+            return {"halted": True, "steps": step + 1, "samples": samples}
+        tape[head] = write[i]
+        if head < low:
+            low = head
+        elif head > high:
+            high = head
+        head += move[i]
+        state = nxt[i]
+        if head < 16 or head >= len(tape) - 16:
+            tape, head, low, high = _grow(tape, head, low, high)
+        done = step + 1
+        while index < len(wanted) and done == wanted[index]:
+            samples.append({"steps": done, "span": high - low, "drift": head - low})
+            index += 1
+    return {"halted": False, "steps": steps, "samples": samples}
+
+
 def cryptid_exhibits() -> list[dict]:
     """What this pipeline says about the quoted cryptids, which is nothing about their halting."""
     out: list[dict] = []
@@ -536,6 +576,7 @@ def cryptid_exhibits() -> list[dict]:
                 "certificate": certificate,
                 "checker": "accepted" if accepted else ("refused" if accepted is False else None),
                 "reason": reason,
+                "trace": cryptid_trace(machine),
                 "source": CRYPTID_SOURCE,
             }
         )

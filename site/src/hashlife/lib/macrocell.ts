@@ -167,3 +167,77 @@ export function parseMacrocell(text: string): Pattern {
 export function looksLikeMacrocell(text: string): boolean {
   return text.trimStart().startsWith('[M2]');
 }
+
+/**
+ * Write a pattern as a Golly macrocell (M2).
+ *
+ * There is no interning: every non-empty node is emitted once, children before parents, so the file
+ * is proportional to the live cells rather than to the square they sit in. That keeps the writer
+ * small enough to trust, and the round-trip against a published RLE is what tests the pair.
+ *
+ * The published metapixel macrocell is not reachable from here — conwaylife.com refuses automated
+ * fetches and no mirror carries the `.mc` — so this writer is how the macrocell path gets a large
+ * pattern to read. It is our export, not Golly's, and the test says so by comparing cell for cell
+ * against the published RLE.
+ */
+export function writeMacrocell(pattern: Pattern, generation = 0): string {
+  const rule = pattern.rule ?? 'B3/S23';
+  let level = LEAF_LEVEL;
+  while (2 ** level < Math.max(pattern.width, pattern.height)) level += 1;
+  const side = 2 ** level;
+  const lines: string[] = [];
+  let next = 1;
+
+  const per = side / LEAF_SIDE;
+  const leaves = new Int32Array(per * per);
+  for (let by = 0; by < per; by++) {
+    for (let bx = 0; bx < per; bx++) {
+      const rows: string[] = [];
+      let live = false;
+      for (let y = 0; y < LEAF_SIDE; y++) {
+        let row = '';
+        for (let x = 0; x < LEAF_SIDE; x++) {
+          const px = bx * LEAF_SIDE + x;
+          const py = by * LEAF_SIDE + y;
+          const on =
+            px < pattern.width &&
+            py < pattern.height &&
+            pattern.cells[py * pattern.width + px] === 1;
+          if (on) live = true;
+          row += on ? '*' : '.';
+        }
+        rows.push(row.replace(/\.+$/, ''));
+      }
+      if (!live) continue;
+      while (rows.length > 0 && rows[rows.length - 1] === '') rows.pop();
+      leaves[by * per + bx] = next++;
+      lines.push(rows.map((row) => `${row}$`).join(''));
+    }
+  }
+  if (lines.length === 0) throw new PatternError('a macrocell needs at least one live cell');
+
+  const rings: Int32Array[] = [leaves];
+  let size = per;
+  let nodeLevel = LEAF_LEVEL;
+  while (size > 1) {
+    nodeLevel += 1;
+    const half = size / 2;
+    const parents = new Int32Array(half * half);
+    const previous = rings[rings.length - 1] as Int32Array;
+    for (let by = 0; by < half; by++) {
+      for (let bx = 0; bx < half; bx++) {
+        const nw = previous[by * 2 * size + bx * 2] ?? 0;
+        const ne = previous[by * 2 * size + bx * 2 + 1] ?? 0;
+        const sw = previous[(by * 2 + 1) * size + bx * 2] ?? 0;
+        const se = previous[(by * 2 + 1) * size + bx * 2 + 1] ?? 0;
+        if (nw === 0 && ne === 0 && sw === 0 && se === 0) continue;
+        parents[by * half + bx] = next++;
+        lines.push(`${nodeLevel} ${nw} ${ne} ${sw} ${se}`);
+      }
+    }
+    rings.push(parents);
+    size = half;
+  }
+
+  return [`[M2] (golly 2.0)`, `#R ${rule}`, `#G ${generation}`, ...lines].join('\n') + '\n';
+}
