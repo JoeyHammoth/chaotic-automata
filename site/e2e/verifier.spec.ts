@@ -31,6 +31,16 @@ test('a certified class and a heuristic class are distinguishable by words, not 
   await expect(page.locator('#symbol-legend')).toContainText('▲');
 });
 
+test('a cryptid is shown with its string and without a verdict', async ({ page }) => {
+  await page.goto('/verifier.html');
+  const table = page.locator('#cryptid-table');
+  await expect(table).toContainText('Antihydra', { timeout: 15_000 });
+  await expect(table).toContainText('1RB1RA_0LC1LE_1LD1LC_1LA0LB_1LF1RE_---0RA');
+  await expect(table).toContainText('probviously non-halting');
+  await expect(table).toContainText('nothing about halting');
+  await expect(page.locator('#cryptid-note')).toContainText('not evidence');
+});
+
 test('a certificate is shown with its mutations refused', async ({ page }) => {
   await page.goto('/verifier.html');
   await expect(page.locator('#certificate-json')).toContainText('"kind"', { timeout: 15_000 });

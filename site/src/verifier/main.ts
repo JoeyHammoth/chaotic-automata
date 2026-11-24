@@ -4,6 +4,7 @@
 import {
   certificateSummary,
   checkSummary,
+  cryptidSummary,
   formatSteps,
   loadVerifier,
   residue,
@@ -87,6 +88,35 @@ function renderLabelled(product: VerifierProduct): void {
   }
 }
 
+function renderCryptids(product: VerifierProduct): void {
+  const body = element<HTMLTableSectionElement>('cryptid-table');
+  body.replaceChildren();
+  for (const cryptid of product.cryptids) {
+    const summary = cryptidSummary(cryptid);
+    const row = document.createElement('tr');
+    const name = document.createElement('th');
+    name.scope = 'row';
+    name.textContent = cryptid.name;
+    const machine = document.createElement('td');
+    machine.className = 'certificate';
+    machine.textContent = cryptid.string;
+    const mine = document.createElement('td');
+    mine.textContent = `${summary.verdict} — ${summary.proves}`;
+    row.append(
+      name,
+      cell(cryptid.domain),
+      machine,
+      cell(`${cryptid.claim} (${cryptid.found})`),
+      mine,
+    );
+    body.append(row);
+  }
+  element('cryptid-note').textContent =
+    'The strings are quoted from the bbchallenge wiki and round-trip through this parser exactly. ' +
+    'The cap is the same 256 steps used everywhere on this page; for a cryptid it is not evidence, ' +
+    'which is why no row here is counted as decided.';
+}
+
 function renderCertificate(product: VerifierProduct, entry: Labelled): void {
   element('certificate-summary').textContent =
     `${entry.string}: ${certificateSummary(entry.certificate)}`;
@@ -130,6 +160,7 @@ function render(product: VerifierProduct): void {
   renderResidue(product);
   renderBb(product);
   renderLabelled(product);
+  renderCryptids(product);
   renderClaims(product);
   const select = element<HTMLSelectElement>('certificate-select');
   select.replaceChildren();

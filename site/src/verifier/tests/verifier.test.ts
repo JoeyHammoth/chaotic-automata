@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   certificateSummary,
   checkSummary,
+  cryptidSummary,
   formatSteps,
   residue,
   verdictBadge,
+  type Cryptid,
   type Labelled,
   type Run,
 } from '../lib/verifier';
@@ -85,6 +87,44 @@ describe('formatting', () => {
     expect(checkSummary(labelled({ checker: 'refused', reason: 'the state differs' }))).toContain(
       'refused',
     );
+  });
+});
+
+function cryptid(over: Partial<Cryptid>): Cryptid {
+  return {
+    name: 'Antihydra',
+    string: '1RB1RA_0LC1LE_1LD1LC_1LA0LB_1LF1RE_---0RA',
+    states: 6,
+    domain: 'BB(6)',
+    claim: 'probviously non-halting',
+    found: 'Jun 2024, mxdys',
+    note: '',
+    source: 'https://wiki.bbchallenge.org/wiki/Cryptids',
+    verdict: 'heuristic',
+    steps: 256,
+    halted: false,
+    span: 24,
+    certificate: null,
+    checker: null,
+    reason: null,
+    ...over,
+  };
+}
+
+describe('cryptids', () => {
+  it('reports the guess and says in the same breath that it proves nothing', () => {
+    const summary = cryptidSummary(cryptid({}));
+    expect(summary.verdict).toContain('heuristic after 256 steps');
+    expect(summary.verdict).toContain('no certificate');
+    expect(summary.proves).toContain('nothing about halting');
+    expect(summary.proves).toContain('256');
+  });
+
+  it('does not call a halted cryptid decided either', () => {
+    // If a quoted machine ever halted inside the cap the row must still not read as a verdict about
+    // the open problem; the wording is the same because the claim is about the cap.
+    const summary = cryptidSummary(cryptid({ verdict: 'halts', halted: true, steps: 12 }));
+    expect(summary.proves).toContain('nothing about halting');
   });
 });
 

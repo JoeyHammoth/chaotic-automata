@@ -6,7 +6,7 @@
 // engine's counts, not estimates: a page that guessed them would be lying about the compression.
 
 import { looksLikeMacrocell, parseMacrocell } from './lib/macrocell';
-import { PatternError, parseRle, population, type Pattern } from './lib/rle';
+import { PatternError, parseRle, population, tile, type Pattern } from './lib/rle';
 import {
   cellsPerPixel,
   clampView,
@@ -24,6 +24,38 @@ const GUN = `x = 36, y = 9, rule = B3/S23
 24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o!`;
 const BLOCK = 'x = 2, y = 2\n2o$2o!';
 const LIBRARY: Record<string, string> = { gun: GUN, block: BLOCK };
+
+interface Fixture {
+  file: string;
+  label: string;
+  /** Where the pattern came from, printed with the load, so a reader can check the source. */
+  source: string;
+  tiles?: number;
+}
+
+// The two patterns that make the zoom worth having. Both are the published files, not
+// reconstructions; the array is the metapixel tiled, so the source pattern stays the one that was
+// published.
+const FIXTURES: Record<string, Fixture> = {
+  breeder: {
+    file: 'fixtures/rileysbreeder.rle',
+    label: "Riley's breeder",
+    source: "conwaylife.com/wiki/Riley's_breeder — 38 cells, 135x41, quadratic growth",
+  },
+  metapixel: {
+    file: 'fixtures/otcametapixel.rle',
+    label: 'OTCA metapixel',
+    source: 'conwaylife.com/wiki/OTCA_metapixel — 2058x2058, 64,691 cells, Brice Due 2006',
+  },
+  metapixelArray: {
+    file: 'fixtures/otcametapixel.rle',
+    label: 'OTCA metapixel, 2x2 array',
+    // 2,307,268 nodes and about 590 MB of module memory: the heaviest thing here, and the gauge
+    // says so. The copies cannot share subtrees because 2058 is not a power of two.
+    source: 'four copies of the OTCA metapixel, tiled 2x2 — 2.3M nodes, ~590 MB of memory',
+    tiles: 2,
+  },
+};
 
 let hash: HashLife | null = null;
 let view: View = { x: 0, y: 0, scale: 2 };
@@ -156,16 +188,13 @@ function fit(): void {
 }
 
 async function load(pattern: Pattern, name: string): Promise<void> {
-  const loaded = await createHashLife(pattern);
-  if (loaded === null) {
-    fail(
-      'the HashLife module did not load. Run `npm run build:wasm` so the page has a module with ' +
-        'the zoom exports.',
-    );
-    status('nothing to draw: the engine module is missing');
+  try {
+    hash = await createHashLife(pattern);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+    status('nothing to draw: the engine refused the pattern');
     return;
   }
-  hash = loaded;
   patternName = name;
   fit();
   render();
@@ -174,6 +203,29 @@ async function load(pattern: Pattern, name: string): Promise<void> {
     `Loaded ${pattern.width}×${pattern.height}, ${population(pattern).toLocaleString('en-US')} ` +
       `live cells, ${pattern.rule ?? 'the default rule'}.`,
   );
+}
+
+async function choosePattern(name: string): Promise<void> {
+  const inline = LIBRARY[name];
+  if (inline !== undefined) {
+    await load(parseRle(inline), name);
+    return;
+  }
+  const fixture = FIXTURES[name];
+  if (fixture === undefined) return;
+  status(`Fetching ${fixture.label}…`);
+  try {
+    const response = await fetch(`${import.meta.env.BASE_URL}${fixture.file}`);
+    if (!response.ok) throw new PatternError(`the pattern file is missing (${response.status})`);
+    const text = await response.text();
+    let pattern = looksLikeMacrocell(text) ? parseMacrocell(text) : parseRle(text);
+    if (fixture.tiles !== undefined) pattern = tile(pattern, fixture.tiles, fixture.tiles);
+    await load(pattern, name);
+    element('status').textContent += ` Source: ${fixture.source}.`;
+  } catch (error) {
+    const message = error instanceof PatternError ? error.message : String(error);
+    fail(`Could not load ${fixture.label}: ${message}`);
+  }
 }
 
 function wire(): void {
@@ -217,9 +269,7 @@ function wire(): void {
 
   element<HTMLSelectElement>('pattern').addEventListener('change', (event) => {
     const target = event.target as HTMLSelectElement;
-    const text = LIBRARY[target.value];
-    if (text === undefined) return;
-    void load(parseRle(text), target.value);
+    void choosePattern(target.value);
   });
 
   element('import').addEventListener('click', () => {

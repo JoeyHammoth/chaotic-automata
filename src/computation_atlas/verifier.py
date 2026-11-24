@@ -32,7 +32,7 @@ CHECK_EVERY = 32
 LABEL_SEED = 97
 HEURISTIC_SPAN = 64
 BOUNCER_SPAN = 8
-LETTERS = "ABCDE"
+LETTERS = "ABCDEFG"
 
 CHAMPION = "1RB1LC_1RC1RB_1RD0LE_1LA1LD_---0LA"
 CHAMPION_STEPS = 47_176_870
@@ -42,9 +42,49 @@ CHAMPION_SOURCE = (
 
 QUOTED = {2: 6, 3: 21, 4: 107, 5: CHAMPION_STEPS}
 
+CRYPTID_SOURCE = "https://wiki.bbchallenge.org/wiki/Cryptids"
+
+# Machines whose halting problem is tied to an open problem, quoted from the bbchallenge wiki. They
+# are exhibits, not a search: the 256-step cap says nothing about any of them, and the page says so.
+CRYPTIDS = [
+    {
+        "name": "Bigfoot",
+        "string": "0RB1RB_1LC0RA_1RE1LF_1LF1RE_0RD1RD_1LG0LG_---1LB",
+        "domain": "BB(7)",
+        "claim": "probviously non-halting",
+        "found": "Nov 2023, Shawn Ligocki",
+        "note": "The BB(7) machine is compiled by @Iijil1 (June 2024).",
+    },
+    {
+        "name": "Antihydra",
+        "string": "1RB1RA_0LC1LE_1LD1LC_1LA0LB_1LF1RE_---0RA",
+        "domain": "BB(6)",
+        "claim": "probviously non-halting",
+        "found": "Jun 2024, mxdys; shown to be a cryptid by Racheline",
+        "note": "Hydra's mirror image: same rule, starting from 8 instead of 3, with the opposite "
+        "termination condition.",
+    },
+    {
+        "name": "Lucy's Moonlight",
+        "string": "1RB0RD_0RC1RE_1RD0LA_1LE1LC_1RF0LD_---0RA",
+        "domain": "BB(6)",
+        "claim": "probviously halting",
+        "found": "Mar 2025, Racheline",
+        "note": "A cryptid whose behaviour is expected to end in a halt rather than in a cycle.",
+    },
+    {
+        "name": "Space Needle",
+        "string": "1RB1LA_1LC0RE_1LF1LD_0RB0LA_1RC1RE_---0LD",
+        "domain": "BB(6)",
+        "claim": "probviously non-halting",
+        "found": "Jan 2025, mxdys",
+        "note": "Has near-identical behaviour to a cluster of related BB(6) holdouts.",
+    },
+]
+
 
 class MachineError(ValueError):
-    """A machine string that is not a 2-symbol machine of 1..5 states."""
+    """A machine string that is not a 2-symbol machine of 1..7 states."""
 
 
 @dataclass(frozen=True)
@@ -462,7 +502,44 @@ CLAIMS = [
         "source": "docs/methods.md M5b",
         "verified": True,
     },
+    {
+        "text": (
+            "the six- and seven-state cryptids below carry no verdict here: a 256-step cap says "
+            "nothing about a machine whose halting is an open problem"
+        ),
+        "source": CRYPTID_SOURCE,
+        "verified": True,
+    },
 ]
+
+
+def cryptid_exhibits() -> list[dict]:
+    """What this pipeline says about the quoted cryptids, which is nothing about their halting."""
+    out: list[dict] = []
+    for entry in CRYPTIDS:
+        machine = parse(entry["string"])
+        verdict, certificate, steps = decide(machine, CAP)
+        _, halted, tape, _, _ = simulate(machine, CAP)
+        span = (max(tape) - min(tape)) if tape else 0
+        accepted = None
+        reason = None
+        if certificate is not None:
+            accepted, reason = check(entry["string"], certificate)
+        out.append(
+            {
+                **entry,
+                "states": machine.states,
+                "verdict": verdict,
+                "steps": steps,
+                "halted": halted,
+                "span": span,
+                "certificate": certificate,
+                "checker": "accepted" if accepted else ("refused" if accepted is False else None),
+                "reason": reason,
+                "source": CRYPTID_SOURCE,
+            }
+        )
+    return out
 
 
 def build_document() -> dict:
@@ -521,6 +598,7 @@ def build_document() -> dict:
             "source": CHAMPION_SOURCE,
         },
         "labelled": labelled,
+        "cryptids": cryptid_exhibits(),
         "claims": CLAIMS,
     }
 

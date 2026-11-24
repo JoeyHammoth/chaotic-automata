@@ -61,6 +61,26 @@ export interface Champion {
   source: string;
 }
 
+export interface Cryptid {
+  name: string;
+  string: string;
+  states: number;
+  domain: string;
+  /** What the wiki says about it, in the wiki's own words. */
+  claim: string;
+  found: string;
+  note: string;
+  source: string;
+  verdict: string;
+  steps: number;
+  halted: boolean;
+  /** How wide the written tape got inside the cap. */
+  span: number;
+  certificate: Certificate | null;
+  checker: 'accepted' | 'refused' | null;
+  reason: string | null;
+}
+
 export interface VerifierProduct {
   version: number;
   generated_by: string;
@@ -73,6 +93,7 @@ export interface VerifierProduct {
   runs: Run[];
   champion: Champion;
   labelled: Labelled[];
+  cryptids: Cryptid[];
   claims: Claim[];
 }
 
@@ -94,6 +115,20 @@ export function verdictBadge(verdict: string): VerdictBadge {
     return { className: 'heuristic', symbol: '■', text: 'heuristic — the checker refused this guess' };
   }
   return { className: 'certified', symbol: '◆', text: `certified non-halting · ${verdict}` };
+}
+
+/**
+ * What this pipeline can say about a cryptid: its own verdict inside the cap, and nothing more. The
+ * row is worded so a reader cannot mistake a 256-step guess for a claim about the machine.
+ */
+export function cryptidSummary(cryptid: Cryptid): { verdict: string; proves: string } {
+  const guess = cryptid.certificate === null ? 'a guess with no certificate' : 'a certificate';
+  return {
+    verdict: `${cryptid.verdict} after ${cryptid.steps} steps (${guess})`,
+    proves:
+      'nothing about halting: the cap is 256 steps and this machine is quoted precisely because ' +
+      'nobody knows whether it halts',
+  };
 }
 
 export function formatSteps(steps: number | null): string {
