@@ -361,8 +361,8 @@ decay.
 ### As implemented
 
 `src/computation_atlas/stress.py` writes `products/stress/panel.json`; `site/stress.html` decodes it
-and draws two panels. Nothing is computed in the browser, so a figure and the committed bytes cannot
-disagree.
+and draws three panels. Nothing is computed in the browser, so a figure and the committed bytes
+cannot disagree.
 
 **A lattice is one integer.** One bit per cell, so an update is a handful of shifts and masks on an
 `L^2`-bit integer instead of a Python loop over cells, and the cost per step does not depend on the
@@ -434,14 +434,45 @@ ensemble size looks like; neither is a claim to the quoted precision. The tolera
 resolves, not by the precision of the value it is compared with. A run that absorbed inside the
 window yields no fit and is reported as undecided.
 
-Not yet done, and therefore not claimed: the noise overlay that re-colours the atlas (#22) and the
-hierarchical error-correction panel.
+**Noise overlay: what the statistic is.** `src/computation_atlas/noise.py` writes `products/noise/`,
+a manifest plus four 16,384-byte survival grids; the atlas page interpolates them and never
+simulates. A rule's survival is measured on a 16 x 16 torus for 24 steps from a soup, each cell's
+state flipped independently with probability ε. The statistic is the density-normalised excess
+neighbour agreement
 
-**Hierarchical error correction (pedagogical).** Concatenated-majority tower: blocks encode
-higher-level cells, which are blocked again. Labelled as an analogue of Gács's construction, not the
-construction itself.
+`C_n = (agree - baseline) / (1 - baseline)`, with `baseline = ρ² + (1 - ρ)²`,
 
-**Noise overlay.** Re-colour the atlas by structure survival at temperature ε.
+where `agree` is the fraction of four-neighbour pairs in the same state and `ρ` the final density.
+A uniform field and a random field at any density both read 0 by construction, and a perfect sparse
+still life reads 1. Raw excess agreement was rejected because density dominates it: the same still
+life scored 0.03.
+
+**How much of the chart is measured.** 128 x 128 samples over the 512 x 512 chart — every fourth
+index, each sample drawn over the 4 x 4 cells it stands for. Four stored levels,
+ε ∈ {0, 1/64, 1/32, 1/8}; the slider interpolates linearly between them and counts in 1/1024, so
+every position is an exact dyadic rate. One soup (seed 11) and one noise realisation per step (seed
+23) are shared by every rule: common random numbers, so a difference between two rules is not a
+difference between two random draws. The full 512 x 512 chart was rejected as unaffordable — the
+nibble kernel costs about 60 µs per step, which is half an hour of sweep against 2.5 minutes.
+
+**Collapsed means below 0.10 excess agreement.** At ε = 0 that is 66% of rules, at 1/8 it is 88%.
+The page states both numbers rather than implying that most rules have structure to lose: most
+Life-like rules are already uniform or noise-dominated with no noise at all. Collapsed cells are
+hatched as well as darkened, so the distinction does not depend on colour.
+
+**Hierarchical error correction (pedagogical).** Concatenated-majority tower: a block of three cells
+encodes one cell at the next level, and blocks of those encode the next again. Five levels, leaf
+error rates 0.01, 0.05, 0.1, 0.25 and 0.4, 1000 trials, seed 41. The recursion is `p' = 3p² - 2p³`,
+the probability that at least two of three inputs are wrong; the page also measures the built tower
+by counting wrong nodes at every level, and the two agree within sampling error (at ε = 0.1:
+0.0280 against 0.0274 at level 1, 1.6e-5 against 2.2e-4 at level 3). Below 1/2 the recursion has a
+stable fixed point at 0, above it one at 1: the gate is its own threshold.
+
+**No threshold is claimed for the tower.** 1/2 is the fixed point of `3p² - 2p³`, not a noise
+tolerance for any automaton, and the page says so in the panel and again in the caption. The analogue
+assumes independent leaf errors and a shallow tree; Gács's 1D construction has to survive errors that
+arrive correlated inside a cellular neighbourhood, which is why it is far more intricate and why
+nothing here is a claim about it.
 
 **Frontier context (cited, not implemented).** Gács (1986, 1989) built reliable 1D computation from
 hierarchical self-simulation. A local automaton for the 2D toric code

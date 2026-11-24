@@ -37,6 +37,18 @@
             <option value="class">class</option>
           </select>
           <label class="toggle"><input type="checkbox" id="disagreement" /> disagreement</label>
+          <label class="toggle"><input type="checkbox" id="noise-overlay" /> noise overlay</label>
+          <label for="eps">ε</label>
+          <input
+            id="eps"
+            type="range"
+            min="0"
+            max="128"
+            step="1"
+            value="0"
+            aria-describedby="noise-note"
+          />
+          <output id="eps-value" for="eps">0</output>
           <span class="spacer"></span>
           <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
           <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
@@ -58,6 +70,7 @@
         </div>
 
         <ul id="legend" class="legend" aria-label="Legend"></ul>
+        <p id="noise-note" class="status" data-testid="noise-note"></p>
         <p id="status" class="status" data-testid="status" aria-live="polite">loading the map…</p>
       </section>
 
@@ -74,6 +87,12 @@
           rules — runs that hit the step cap without resolving — are hatched rather than coloured, so
           "we do not know yet" never looks like a result. The disagreement layer marks cells where
           independent indicators (damage, entropy, period) imply different classes.
+        </p>
+        <p>
+          The noise overlay re-colours the map by whether structure survives at an error rate ε: a
+          measured excess neighbour agreement, interpolated between four stored noise levels. Hatched
+          cells are collapsed — uniform, or indistinguishable from a random field at that density —
+          so “nothing survived” is readable without relying on colour.
         </p>
         <p id="description">
           Loading the atlas. The view is the URL: layer, camera, rule and seed all round-trip.

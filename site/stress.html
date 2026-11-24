@@ -114,6 +114,55 @@
         </div>
       </section>
 
+      <section class="panel" aria-labelledby="tower-heading">
+        <h2 id="tower-heading">Hierarchical error correction</h2>
+        <p class="lede">
+          Blocks of three cells encode one higher-level cell, and blocks of those encode the next
+          level: the self-similar mechanism behind Gács-style constructions. Each level is a majority
+          vote, so an error has to reach two of three inputs to survive to the next one.
+          <strong>This tower is a pedagogical analogue, not Gács's construction.</strong> Its leaf
+          errors are independent and its tree is shallow, and no noise threshold is claimed for it —
+          the point is the shape of the recursion, not a tolerance for any automaton.
+        </p>
+        <div class="controls">
+          <label for="tower-rate">Leaf error ε</label>
+          <input id="tower-rate" type="range" min="0" max="4" step="1" value="0" />
+          <output id="tower-rate-value" for="tower-rate">0.01</output>
+          <span class="spacer"></span>
+          <span class="status" id="tower-note"></span>
+        </div>
+        <div class="phase">
+          <figure class="pane">
+            <canvas
+              id="tower-chart"
+              width="520"
+              height="320"
+              role="img"
+              aria-label="The concatenated-majority tower as rows of blocks, with the error rate per level on a log scale"
+            ></canvas>
+            <figcaption id="tower-caption">Error rate per level.</figcaption>
+          </figure>
+          <div>
+            <p id="tower-summary" class="readout" aria-live="polite"></p>
+            <table class="data">
+              <caption>
+                Error rate per level: the recursion and the same tower actually built.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">level</th>
+                  <th scope="col">nodes</th>
+                  <th scope="col">p (recursion)</th>
+                  <th scope="col">measured</th>
+                </tr>
+              </thead>
+              <tbody id="tower-table"></tbody>
+            </table>
+            <p id="tower-claim" class="status"></p>
+          </div>
+        </div>
+      </section>
+
       <p class="status" id="status" aria-live="polite">loading the panel…</p>
       <p class="status">
         <a href="/">Back to the atlas</a> · <a href="/inspector.html">Inspector</a>

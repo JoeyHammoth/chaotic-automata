@@ -1,0 +1,54 @@
+{
+ "anchors": [
+  {
+   "bytes": 16384,
+   "collapsed_fraction": 0.66046142578125,
+   "den": 1,
+   "eps": 0.0,
+   "num": 0,
+   "path": "survival-0.bin",
+   "sha256": "23cdeaa10ce2993bd403ebc1d111c8439ed9a6cfc1adb9beb5dee08d4c29eed2"
+  },
+  {
+   "bytes": 16384,
+   "collapsed_fraction": 0.729736328125,
+   "den": 64,
+   "eps": 0.015625,
+   "num": 1,
+   "path": "survival-1.bin",
+   "sha256": "b8af1dc4ce6776049dec321901efb0e0ce2c5098c5829081c71388b80c6a8521"
+  },
+  {
+   "bytes": 16384,
+   "collapsed_fraction": 0.7532958984375,
+   "den": 32,
+   "eps": 0.03125,
+   "num": 1,
+   "path": "survival-2.bin",
+   "sha256": "49af35edadb9c792ca929f5cfb272428a155897b0f10be535125023cfe923102"
+  },
+  {
+   "bytes": 16384,
+   "collapsed_fraction": 0.87506103515625,
+   "den": 8,
+   "eps": 0.125,
+   "num": 1,
+   "path": "survival-3.bin",
+   "sha256": "2c1838b305b2c367c138bc4c658a389b2738729e2ac850717026e3d1f33814a0"
+  }
+ ],
+ "chart": 512,
+ "generator": "python -m computation_atlas.noise",
+ "grid": 128,
+ "kind": "noise-overlay",
+ "lattice": 16,
+ "noise_seed": 23,
+ "note": "One 16x16 torus, one seeded soup and one noise realisation per level, shared by every rule (common random numbers), 24 steps. The chart is sampled every fourth index and each sample is drawn over the 4x4 chart cells it stands for. A coarse indicator, not a classification.",
+ "sample": 4,
+ "slider_unit": 1024,
+ "soup_seed": 11,
+ "statistic": "excess neighbour agreement (agree - baseline) / (1 - baseline), where agree is the fraction of horizontal and vertical neighbour pairs that match and baseline = rho^2 + (1 - rho)^2. Zero means the field is uniform or statistically indistinguishable from a random field at that density; one means every neighbour pair matches.",
+ "steps": 24,
+ "threshold": 0.1,
+ "version": 1
+}

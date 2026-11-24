@@ -88,12 +88,30 @@ export interface DkSection {
   claim_pc: Claim;
 }
 
+export interface TowerCurve {
+  eps: number;
+  analytic: number[];
+  measured: number[];
+}
+
+export interface TowerSection {
+  block: number;
+  levels: number;
+  rates: number[];
+  trials: number;
+  seed: number;
+  recursion: string;
+  curves: TowerCurve[];
+  note: string;
+}
+
 export interface PanelDocument {
   version: number;
   generator: string;
   noise: { grid: number[]; note: string };
   toom: ToomSection;
   dk: DkSection;
+  tower: TowerSection;
 }
 
 function greatestCommonDivisor(a: number, b: number): number {

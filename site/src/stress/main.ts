@@ -12,6 +12,14 @@ import {
   type PanelDocument,
   type ToomSection,
 } from './lib/panel';
+import {
+  curveFor,
+  describeCurve,
+  formatRate,
+  nodesPerLevel,
+  type TowerCurve,
+  type TowerSection,
+} from './lib/tower';
 
 // Every figure here is a recorded run. The page paints what the product says, including the runs
 // that hit their cap: those are drawn on the cap line as lower bounds and are never joined to a
@@ -44,6 +52,14 @@ const dkSummary = required<HTMLElement>('#dk-summary');
 const dkVerdict = required<HTMLElement>('#dk-verdict');
 const status = required<HTMLElement>('#status');
 const errorBox = required<HTMLElement>('#error');
+const towerInput = required<HTMLInputElement>('#tower-rate');
+const towerValue = required<HTMLOutputElement>('#tower-rate-value');
+const towerCanvas = required<HTMLCanvasElement>('#tower-chart');
+const towerTable = required<HTMLTableSectionElement>('#tower-table');
+const towerSummary = required<HTMLElement>('#tower-summary');
+const towerCaption = required<HTMLElement>('#tower-caption');
+const towerClaim = required<HTMLElement>('#tower-claim');
+const towerNote = required<HTMLElement>('#tower-note');
 
 let loaded: PanelDocument | null = null;
 let noise = 0;
@@ -347,6 +363,146 @@ function applyNoise(value: number, updateUrl: boolean): void {
   }
 }
 
+function drawTower(section: TowerSection, curve: TowerCurve): void {
+  const context = towerCanvas.getContext('2d');
+  if (!context) return;
+  const { width, height } = towerCanvas;
+  context.fillStyle = BACKGROUND;
+  context.fillRect(0, 0, width, height);
+
+  // Left: the tower itself, three levels of three-by-three nesting. A cell at the top level is a
+  // block of three, each of those a block of three, each of those a block of three leaves.
+  const depth = 3;
+  const side = 240;
+  const left = 8;
+  const top = 46;
+  const cells = section.block ** depth;
+  const step = side / cells;
+  for (let y = 0; y < cells; y += 1) {
+    for (let x = 0; x < cells; x += 1) {
+      context.fillStyle = (x + y) % 2 === 0 ? '#10262a' : '#0a171a';
+      context.fillRect(left + x * step, top + y * step, step + 0.5, step + 0.5);
+    }
+  }
+  for (let k = 0; k <= cells; k += 1) {
+    if (k % 3 !== 0) continue;
+    const at = left + k * step;
+    context.strokeStyle = k % (section.block * section.block) === 0 ? '#7bd1c0' : '#2a4a4f';
+    context.lineWidth = k % (section.block * section.block) === 0 ? 1.5 : 1;
+    context.beginPath();
+    context.moveTo(at, top);
+    context.lineTo(at, top + side);
+    context.moveTo(left, top + k * step);
+    context.lineTo(left + side, top + k * step);
+    context.stroke();
+  }
+  context.fillStyle = TEXT;
+  context.font = '11px system-ui, sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'top';
+  context.fillText(
+    `${section.block ** depth} leaves → ${section.block ** 2} blocks → ${section.block} → 1`,
+    left + side / 2,
+    top + side + 8,
+  );
+  context.fillText('one cell, three levels down', left + side / 2, top + side + 26);
+
+  // Right: the error rate per level on a log scale. The recursion is a line; the built tower is
+  // dots, so a disagreement between the two would be visible rather than averaged away.
+  const frame = { left: 300, top: 46, width: 200, height: 240 };
+  const floor = 1e-6;
+  const y = logScale(floor, 1, frame.top + frame.height, frame.top);
+  const x = (level: number) =>
+    frame.left + ((level - 1) / Math.max(1, section.levels - 1)) * frame.width;
+  context.textAlign = 'right';
+  context.textBaseline = 'middle';
+  context.lineWidth = 1;
+  for (const tick of decadeTicks(floor, 1)) {
+    const py = y(tick);
+    context.strokeStyle = GRID;
+    context.beginPath();
+    context.moveTo(frame.left, py);
+    context.lineTo(frame.left + frame.width, py);
+    context.stroke();
+    context.fillStyle = TEXT;
+    context.fillText(tick < 1 ? tick.toExponential(0) : '1', frame.left - 6, py);
+  }
+  context.strokeStyle = '#2a323d';
+  context.beginPath();
+  context.moveTo(frame.left, frame.top);
+  context.lineTo(frame.left, frame.top + frame.height);
+  context.lineTo(frame.left + frame.width, frame.top + frame.height);
+  context.stroke();
+
+  const clamp = (value: number) => Math.max(floor, value);
+  context.strokeStyle = NEC;
+  context.lineWidth = 2;
+  context.beginPath();
+  curve.analytic.forEach((value, index) => {
+    const px = x(index + 1);
+    const py = y(clamp(value));
+    if (index === 0) context.moveTo(px, py);
+    else context.lineTo(px, py);
+  });
+  context.stroke();
+  context.fillStyle = MARK;
+  curve.measured.forEach((value, index) => {
+    context.beginPath();
+    context.arc(x(index + 1), y(clamp(value)), 3, 0, Math.PI * 2);
+    context.fill();
+  });
+
+  context.fillStyle = TEXT;
+  context.textAlign = 'center';
+  context.textBaseline = 'top';
+  for (let level = 1; level <= section.levels; level += 1) {
+    context.fillText(String(level), x(level), frame.top + frame.height + 8);
+  }
+  context.fillText('level', frame.left + frame.width / 2, frame.top + frame.height + 26);
+  context.save();
+  context.translate(288, frame.top + frame.height / 2);
+  context.rotate(-Math.PI / 2);
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText('error rate (log)', 0, 0);
+  context.restore();
+}
+
+function renderTower(section: TowerSection, index: number): void {
+  const rate = section.rates[index] ?? section.rates[0] ?? 0;
+  const curve = curveFor(section, rate);
+  if (!curve) return;
+  towerInput.value = String(index);
+  towerValue.textContent = formatRate(rate);
+  towerNote.textContent = `${section.trials} trials · seed ${section.seed} · ${section.recursion}`;
+  drawTower(section, curve);
+  towerSummary.textContent = describeCurve(curve);
+  towerCaption.textContent =
+    `Error rate per level at ε = ${formatRate(rate)}. The line is the recursion, the dots are the ` +
+    `tower actually built; a pedagogical analogue, not Gács's construction.`;
+  towerTable.replaceChildren();
+  // Level 1 holds block^(levels-1) nodes, down to the single root: leaves are level 0, not a row.
+  const counts = nodesPerLevel(section.levels, section.block).slice(1);
+  for (let level = 1; level <= section.levels; level += 1) {
+    const row = document.createElement('tr');
+    const head = document.createElement('th');
+    head.scope = 'row';
+    head.textContent = String(level);
+    const nodes = document.createElement('td');
+    nodes.className = 'num';
+    nodes.textContent = String(counts[level - 1] ?? 0);
+    const analytic = document.createElement('td');
+    analytic.className = 'num';
+    analytic.textContent = formatRate(curve.analytic[level - 1] ?? Number.NaN);
+    const measured = document.createElement('td');
+    measured.className = 'num';
+    measured.textContent = formatRate(curve.measured[level - 1] ?? Number.NaN);
+    row.append(head, nodes, analytic, measured);
+    towerTable.append(row);
+  }
+  document.body.dataset.towerRate = String(rate);
+}
+
 async function start(): Promise<void> {
   const base = `${import.meta.env.BASE_URL}products/stress/`;
   try {
@@ -377,6 +533,9 @@ async function start(): Promise<void> {
   drawDk(loaded.dk);
   renderFits(loaded.dk);
   renderClaim(toomClaim, loaded.toom.claim);
+  towerInput.max = String(Math.max(0, loaded.tower.rates.length - 1));
+  towerClaim.textContent = loaded.tower.note;
+  renderTower(loaded.tower, 0);
 
   dkSummary.textContent =
     `Active fraction over ${loaded.dk.cells.length} points, measured at L = ` +
@@ -409,6 +568,11 @@ dkCanvas.addEventListener('click', (event) => {
   const found = cellAt(loaded.dk.cells, p1, p2, grid);
   if (!found) return;
   dkReadout.textContent = describeCell(found);
+});
+
+towerInput.addEventListener('input', () => {
+  if (!loaded) return;
+  renderTower(loaded.tower, Number(towerInput.value));
 });
 
 window.addEventListener('popstate', () => {
