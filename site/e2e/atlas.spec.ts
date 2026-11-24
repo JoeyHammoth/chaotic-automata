@@ -111,6 +111,30 @@ test('undecided rules are hatched and named in the legend', async ({ page }) => 
   expect(stripes).toBeGreaterThan(0);
 });
 
+test('the noise overlay re-colours the map and names its threshold', async ({ page }) => {
+  await page.goto('/');
+  await settle(page);
+  await expect(page.getByTestId('noise-note')).toContainText('collapsed below 0.10');
+  const plain = await snapshot(page);
+
+  await page.check('#noise-overlay');
+  await settle(page);
+  await expect(page.locator('body')).toHaveAttribute('data-overlay', 'on');
+  await expect(page.locator('#legend')).toContainText('collapsed (< 0.10)');
+  // Undecided cells and collapsed cells are both hatched: the cue is a pattern, not a hue.
+  await expect(page.locator('#legend .swatch.hatched')).toHaveCount(2);
+  const overlaid = await snapshot(page);
+  expect(overlaid).not.toBe(plain);
+
+  await page.locator('#eps').evaluate((element: HTMLInputElement) => {
+    element.value = '128';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('#eps-value')).toHaveText('1/8 = 0.1250');
+  await expect(page.getByTestId('status')).toContainText('ε 1/8');
+  expect(await snapshot(page)).not.toBe(overlaid);
+});
+
 test('clicking the map runs that rule and updates the URL', async ({ page }) => {
   await page.goto('/?x=0&y=0&z=4');
   await settle(page);

@@ -58,6 +58,32 @@ test("Toom's threshold is labelled as quoted, not re-proved", async ({ page }) =
   await expect(page.locator('#toom-claim')).toContainText('Toom');
 });
 
+test('the tower is labelled an analogue and reports failure per level', async ({ page }) => {
+  await page.goto('/stress.html');
+  await expect(page.locator('body')).toHaveAttribute('data-state', 'ready');
+  await expect(page.locator('#tower-table tr')).toHaveCount(5);
+  // Level 1 holds 81 blocks of the 243 leaves, and the root one: the tower's shape is in the table.
+  await expect(page.locator('#tower-table tr').first()).toContainText('81');
+  await expect(page.locator('#tower-table tr').last()).toContainText('1');
+  await expect(page.locator('#tower-claim')).toContainText('pedagogical analogue');
+  await expect(page.locator('#tower-claim')).toContainText('no threshold is claimed');
+  await expect(page.locator('#tower-claim')).toContainText('not Gacs');
+});
+
+test('the tower slider moves the per-level failure rates', async ({ page }) => {
+  await page.goto('/stress.html');
+  await expect(page.locator('body')).toHaveAttribute('data-state', 'ready');
+  const before = await page.locator('#tower-table').textContent();
+
+  await page.locator('#tower-rate').evaluate((element: HTMLInputElement) => {
+    element.value = '4';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('#tower-rate-value')).toHaveText('0.4000');
+  await expect(page.locator('#tower-table')).toContainText('0.3538');
+  expect(await page.locator('#tower-table').textContent()).not.toBe(before);
+});
+
 test('nothing animates, so reduced motion needs no special case', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/stress.html');

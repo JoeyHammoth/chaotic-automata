@@ -18,6 +18,8 @@ import {
 import { createEngine, parseRule, type Engine } from './engine';
 import { readView, writeView, type View } from './state';
 import { withPngText } from './atlas/lib/png';
+import { drawOverlay, loadNoise, paintOverlay, type NoiseProduct } from './atlas/lib/overlay';
+import { epsFromStep, formatEpsilon, overlayLegend, overlayNote } from './atlas/lib/noise';
 
 const STEP_INTERVAL_MS = 100;
 
@@ -37,6 +39,10 @@ const labelsBox = required<HTMLElement>('#labels');
 const ruleCanvas = required<HTMLCanvasElement>('#rule-canvas');
 const ruleStatus = required<HTMLElement>('#rule-status');
 const ruleHeading = required<HTMLElement>('#rule-heading');
+const noiseToggle = required<HTMLInputElement>('#noise-overlay');
+const epsInput = required<HTMLInputElement>('#eps');
+const epsValue = required<HTMLOutputElement>('#eps-value');
+const noiseNote = required<HTMLElement>('#noise-note');
 
 const result = readView(new URL(location.href));
 if (!result.ok) {
@@ -90,6 +96,49 @@ async function start(view: View): Promise<void> {
     onPaint: () => draw(),
   });
 
+  // The overlay is a second layer over the same chart: measured offline per rule sample,
+  // interpolated in epsilon between the stored levels, drawn with the map's own camera.
+  const overlayCanvas = document.createElement('canvas');
+  overlayCanvas.width = chart.width;
+  overlayCanvas.height = chart.height;
+  let noiseProduct: NoiseProduct | null = null;
+  let noiseOn = false;
+  let epsilon = 0;
+
+  function paint(): void {
+    if (!noiseProduct) return;
+    paintOverlay(overlayCanvas, noiseProduct, epsilon, {
+      light: manifest.palette.hatch.light,
+      dark: manifest.palette.hatch.dark,
+    });
+    noiseNote.textContent = overlayNote(noiseProduct.manifest);
+  }
+
+  async function loadOverlay(): Promise<void> {
+    try {
+      noiseProduct = await loadNoise(`${import.meta.env.BASE_URL}products/noise/`);
+      const data = noiseProduct.manifest;
+      const first = data.anchors[0];
+      const last = data.anchors[data.anchors.length - 1];
+      epsilon = first?.eps ?? 0;
+      epsInput.max = String(Math.round((last?.eps ?? 0) * data.slider_unit));
+      epsInput.value = String(Math.round(epsilon * data.slider_unit));
+      epsValue.textContent = formatEpsilon(epsilon);
+      paint();
+    } catch (error) {
+      noiseToggle.disabled = true;
+      noiseNote.textContent = `Noise overlay unavailable: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
+  function applyEpsilon(): void {
+    if (!noiseProduct) return;
+    epsilon = epsFromStep(Number(epsInput.value), noiseProduct.manifest.slider_unit);
+    epsValue.textContent = formatEpsilon(epsilon);
+    paint();
+    draw();
+  }
+
   function sizeCanvas(): void {
     const rect = mapCanvas.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -117,6 +166,7 @@ async function start(view: View): Promise<void> {
       const layer = manifest.layers.find((entry) => entry.metric === metric);
       items = rampLegend(manifest.palette, layer?.min ?? 0, layer?.max ?? 1);
     }
+    if (noiseOn && noiseProduct) items = [...items, ...overlayLegend(noiseProduct.manifest)];
     legendBox.replaceChildren(
       ...items.map((item) => {
         const row = document.createElement('li');
@@ -148,17 +198,23 @@ async function start(view: View): Promise<void> {
 
   function draw(): void {
     renderer.draw(camera);
+    if (noiseOn && noiseProduct) {
+      drawOverlay(mapCanvas.getContext('2d'), overlayCanvas, camera, chart);
+    }
     const span = (1 / camera.zoom).toFixed(1);
     const metric = disagreementInput.checked ? 'classifier disagreement' : layerSelect.value;
+    const noiseLabel = noiseOn ? ` · ε ${formatEpsilon(epsilon)}` : '';
     const streaming = renderer.pending > 0 ? ` · streaming ${renderer.pending}` : '';
     status.textContent =
-      `${chart.width}×${chart.height} rules · ${metric} · x ${camera.x.toFixed(0)} y ${camera.y.toFixed(0)} · ` +
+      `${chart.width}×${chart.height} rules · ${metric}${noiseLabel} · x ${camera.x.toFixed(0)} y ${camera.y.toFixed(0)} · ` +
       `zoom ${camera.zoom.toFixed(2)}× (${span} cells/px) · ${renderer.loaded} tiles${streaming} · ` +
       `${manifest.profile} data`;
     document.body.dataset.zoom = String(camera.zoom);
     document.body.dataset.layer = layerSelect.value;
     document.body.dataset.tiles = String(renderer.loaded);
     document.body.dataset.pending = String(renderer.pending);
+    document.body.dataset.overlay = noiseOn ? 'on' : 'off';
+    document.body.dataset.eps = String(epsilon);
     document.body.dataset.state = 'ready';
     updateLabels();
   }
@@ -198,6 +254,12 @@ async function start(view: View): Promise<void> {
     draw();
     syncUrl();
   });
+  noiseToggle.addEventListener('change', () => {
+    noiseOn = noiseToggle.checked;
+    updateLegend();
+    draw();
+  });
+  epsInput.addEventListener('input', () => applyEpsilon());
 
   mapCanvas.addEventListener(
     'wheel',
@@ -365,6 +427,7 @@ async function start(view: View): Promise<void> {
   }
 
   sizeCanvas();
+  await loadOverlay();
   draw();
   updateLegend();
   syncUrl();

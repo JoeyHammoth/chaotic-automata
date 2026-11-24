@@ -446,6 +446,73 @@ def verdict(fit: dict[str, object]) -> dict[str, object]:
 # --- the document ----------------------------------------------------------------------------
 
 
+# --- hierarchical error correction (pedagogical) -----------------------------------------------
+
+TOWER_BLOCK = 3
+TOWER_LEVELS = 5
+TOWER_RATES = (0.01, 0.05, 0.1, 0.25, 0.4)
+TOWER_TRIALS = 1000
+TOWER_SEED = 41
+
+
+def tower_curve(rate: float, levels: int) -> list[float]:
+    """The concatenated-majority recursion: a block of three errs when two of its inputs do."""
+    values: list[float] = []
+    p = rate
+    for _ in range(levels):
+        p = 3 * p * p - 2 * p * p * p
+        values.append(p)
+    return values
+
+
+def tower_measured(rate: float, levels: int, trials: int, seed: int) -> list[float]:
+    """The same tower, actually built: leaves flip independently, each block takes the majority.
+
+    Errors are counted per level over every node, so the measurement is a failure rate and not a
+    pass/fail for the root. Independent leaves are the analogue's assumption, and the reason it is
+    a teaching aid: real constructions must survive errors that arrive correlated.
+    """
+    rng = random.Random(seed)
+    wrong = [0] * levels
+    nodes = [0] * levels
+    for _ in range(trials):
+        values = [rng.random() < rate for _ in range(TOWER_BLOCK**levels)]
+        for level in range(levels):
+            values = [
+                sum(values[index : index + TOWER_BLOCK]) * 2 > TOWER_BLOCK
+                for index in range(0, len(values), TOWER_BLOCK)
+            ]
+            wrong[level] += sum(values)
+            nodes[level] += len(values)
+    return [count / total for count, total in zip(wrong, nodes, strict=True)]
+
+
+def tower_document() -> dict[str, object]:
+    curves = [
+        {
+            "eps": rate,
+            "analytic": tower_curve(rate, TOWER_LEVELS),
+            "measured": tower_measured(rate, TOWER_LEVELS, TOWER_TRIALS, TOWER_SEED),
+        }
+        for rate in TOWER_RATES
+    ]
+    return {
+        "block": TOWER_BLOCK,
+        "levels": TOWER_LEVELS,
+        "rates": list(TOWER_RATES),
+        "trials": TOWER_TRIALS,
+        "seed": TOWER_SEED,
+        "recursion": "p' = 3p^2 - 2p^3",
+        "curves": curves,
+        "note": (
+            "A pedagogical analogue, not Gacs's construction: leaf errors are independent, the "
+            "tree is shallow, and no threshold is claimed for it. Gacs's 1D construction has to "
+            "defeat correlated errors inside a cellular neighbourhood, which is why it is far more "
+            "intricate."
+        ),
+    }
+
+
 def toom_series(lattices: tuple[int, ...], cap: int) -> dict[str, list[dict[str, object]]]:
     """Lifetime at every (rule, lattice, noise) on the grid, with each seed's own run."""
     series: dict[str, list[dict[str, object]]] = {"nec": [], "symmetric": []}
@@ -507,6 +574,7 @@ def build_document(
             "grid": list(NOISE_GRID),
             "note": "dyadic m/2^k, so each value is exact and no probability is rounded",
         },
+        "tower": tower_document(),
         "toom": {
             "cap": cap,
             "lattices": list(toom_lattices),
