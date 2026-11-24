@@ -1,0 +1,632 @@
+{
+  "version": 1,
+  "generated_by": "computation_atlas.verifier",
+  "seed": 97,
+  "cap": 256,
+  "check_every": 32,
+  "heuristic_span": 64,
+  "bouncer_span": 8,
+  "machine_format": "bbchallenge: one block per state, 3 characters per transition, --- halts",
+  "runs": [
+    {
+      "states": 2,
+      "quoted": 6,
+      "reproduced": 6,
+      "champion": "1RB---_0LB1LA",
+      "machines": 166,
+      "halting": 60,
+      "certified": 31,
+      "cycler": 14,
+      "bouncer": 14,
+      "translated": 17,
+      "heuristic": 13,
+      "undecided": 62,
+      "examples": {
+        "halts": {
+          "string": "1RB---_------",
+          "steps": 2,
+          "certificate": {
+            "kind": "halts",
+            "steps": 2
+          }
+        },
+        "undecided": {
+          "string": "1RB---_0RA---",
+          "steps": 256,
+          "certificate": null
+        },
+        "translated cycler": {
+          "string": "1RB0RA_0LA---",
+          "steps": 129,
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 96,
+            "shift": 32,
+            "span": 43
+          }
+        },
+        "cycler": {
+          "string": "1RB0RB_0LA---",
+          "steps": 65,
+          "certificate": {
+            "kind": "cycle",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 4,
+            "span": 1
+          }
+        },
+        "heuristic": {
+          "string": "1RB1LA_0LA0RA",
+          "steps": 256,
+          "certificate": null
+        }
+      }
+    },
+    {
+      "states": 3,
+      "quoted": 21,
+      "reproduced": 21,
+      "champion": "1RB---_1LB0RC_1LC1LA",
+      "machines": 20686,
+      "halting": 5516,
+      "certified": 3533,
+      "cycler": 1981,
+      "bouncer": 1981,
+      "translated": 1552,
+      "heuristic": 4640,
+      "undecided": 6997,
+      "examples": {
+        "halts": {
+          "string": "1RB---_------_------",
+          "steps": 2,
+          "certificate": {
+            "kind": "halts",
+            "steps": 2
+          }
+        },
+        "undecided": {
+          "string": "1RB---_0RA---_------",
+          "steps": 256,
+          "certificate": null
+        },
+        "cycler": {
+          "string": "1RB---_0RC---_0LB---",
+          "steps": 65,
+          "certificate": {
+            "kind": "cycle",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 2,
+            "span": 2
+          }
+        },
+        "translated cycler": {
+          "string": "1RB---_0RC---_0LC0RA",
+          "steps": 193,
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 160,
+            "shift": 32,
+            "span": 40
+          }
+        },
+        "heuristic": {
+          "string": "1RB---_0RC---_0LC1RA",
+          "steps": 256,
+          "certificate": null
+        }
+      }
+    },
+    {
+      "states": 4,
+      "quoted": 107,
+      "reproduced": 107,
+      "champion": "1RB1LB_1LA0LC_---1LD_1RD0RA",
+      "machines": 3495618,
+      "halting": 735932,
+      "certified": 513705,
+      "cycler": 335711,
+      "bouncer": 335381,
+      "translated": 177994,
+      "heuristic": 1162121,
+      "undecided": 1083860,
+      "examples": {
+        "halts": {
+          "string": "1RB---_------_------_------",
+          "steps": 2,
+          "certificate": {
+            "kind": "halts",
+            "steps": 2
+          }
+        },
+        "undecided": {
+          "string": "1RB---_0RA---_------_------",
+          "steps": 256,
+          "certificate": null
+        },
+        "cycler": {
+          "string": "1RB---_0RC---_0RD---_0LC---",
+          "steps": 65,
+          "certificate": {
+            "kind": "cycle",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 2,
+            "span": 3
+          }
+        },
+        "heuristic": {
+          "string": "1RB---_0RC---_0RD---_0LD0RA",
+          "steps": 256,
+          "certificate": null
+        },
+        "translated cycler": {
+          "string": "1RB---_0RC---_0RD---_0LD0RB",
+          "steps": 65,
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 32,
+            "shift": -32,
+            "span": 55
+          }
+        }
+      }
+    }
+  ],
+  "champion": {
+    "string": "1RB1LC_1RC1RB_1RD0LE_1LA1LD_---0LA",
+    "steps": 47176870,
+    "quoted": 47176870,
+    "halted": true,
+    "source": "bbchallenge Collaboration, Determination of the fifth Busy Beaver value, arXiv:2509.12337"
+  },
+  "labelled": [
+    {
+      "string": "1RB---_------",
+      "states": 2,
+      "verdict": "halts",
+      "steps": 2,
+      "certificate": {
+        "kind": "halts",
+        "steps": 2
+      },
+      "checker": "accepted",
+      "reason": "replayed 2 steps and the machine halted there",
+      "mutations": [
+        {
+          "label": "one step too many",
+          "certificate": {
+            "kind": "halts",
+            "steps": 3
+          },
+          "accepted": false,
+          "reason": "the machine halts at step 2, not 3"
+        },
+        {
+          "label": "one step too few",
+          "certificate": {
+            "kind": "halts",
+            "steps": 1
+          },
+          "accepted": false,
+          "reason": "the machine halts at step -1, not 1"
+        }
+      ]
+    },
+    {
+      "string": "1RB---_0RA---",
+      "states": 2,
+      "verdict": "undecided",
+      "steps": 256,
+      "certificate": null,
+      "checker": null,
+      "reason": null,
+      "mutations": []
+    },
+    {
+      "string": "1RB0RA_0LA---",
+      "states": 2,
+      "verdict": "translated cycler",
+      "steps": 129,
+      "certificate": {
+        "kind": "translation",
+        "decider": "translated cycler",
+        "start": 33,
+        "period": 96,
+        "shift": 32,
+        "span": 43
+      },
+      "checker": "accepted",
+      "reason": "steps 33 and 129 differ by a shift of 32",
+      "mutations": [
+        {
+          "label": "shift off by one",
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 96,
+            "shift": 33,
+            "span": 43
+          },
+          "accepted": false,
+          "reason": "the head moved 32, not 33"
+        },
+        {
+          "label": "period off by one",
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 97,
+            "shift": 32,
+            "span": 43
+          },
+          "accepted": false,
+          "reason": "the state differs: 0 then 1"
+        }
+      ]
+    },
+    {
+      "string": "1RB0RB_0LA---",
+      "states": 2,
+      "verdict": "cycler",
+      "steps": 65,
+      "certificate": {
+        "kind": "cycle",
+        "decider": "cycler",
+        "confined": true,
+        "start": 33,
+        "period": 4,
+        "span": 1
+      },
+      "checker": "accepted",
+      "reason": "steps 33 and 37 are the same configuration",
+      "mutations": [
+        {
+          "label": "period off by one",
+          "certificate": {
+            "kind": "cycle",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 5,
+            "span": 1
+          },
+          "accepted": false,
+          "reason": "the state differs: 1 then 0"
+        },
+        {
+          "label": "kind relabelled as a translation",
+          "certificate": {
+            "kind": "translation",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 4,
+            "span": 1
+          },
+          "accepted": false,
+          "reason": "a translation certificate needs a shift"
+        }
+      ]
+    },
+    {
+      "string": "1RB1LA_0LA0RA",
+      "states": 2,
+      "verdict": "heuristic",
+      "steps": 256,
+      "certificate": null,
+      "checker": null,
+      "reason": null,
+      "mutations": []
+    },
+    {
+      "string": "1RB---_------_------",
+      "states": 3,
+      "verdict": "halts",
+      "steps": 2,
+      "certificate": {
+        "kind": "halts",
+        "steps": 2
+      },
+      "checker": "accepted",
+      "reason": "replayed 2 steps and the machine halted there",
+      "mutations": [
+        {
+          "label": "one step too many",
+          "certificate": {
+            "kind": "halts",
+            "steps": 3
+          },
+          "accepted": false,
+          "reason": "the machine halts at step 2, not 3"
+        },
+        {
+          "label": "one step too few",
+          "certificate": {
+            "kind": "halts",
+            "steps": 1
+          },
+          "accepted": false,
+          "reason": "the machine halts at step -1, not 1"
+        }
+      ]
+    },
+    {
+      "string": "1RB---_0RA---_------",
+      "states": 3,
+      "verdict": "undecided",
+      "steps": 256,
+      "certificate": null,
+      "checker": null,
+      "reason": null,
+      "mutations": []
+    },
+    {
+      "string": "1RB---_0RC---_0LB---",
+      "states": 3,
+      "verdict": "cycler",
+      "steps": 65,
+      "certificate": {
+        "kind": "cycle",
+        "decider": "cycler",
+        "confined": true,
+        "start": 33,
+        "period": 2,
+        "span": 2
+      },
+      "checker": "accepted",
+      "reason": "steps 33 and 35 are the same configuration",
+      "mutations": [
+        {
+          "label": "period off by one",
+          "certificate": {
+            "kind": "cycle",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 3,
+            "span": 2
+          },
+          "accepted": false,
+          "reason": "the state differs: 1 then 2"
+        },
+        {
+          "label": "kind relabelled as a translation",
+          "certificate": {
+            "kind": "translation",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 2,
+            "span": 2
+          },
+          "accepted": false,
+          "reason": "a translation certificate needs a shift"
+        }
+      ]
+    },
+    {
+      "string": "1RB---_0RC---_0LC0RA",
+      "states": 3,
+      "verdict": "translated cycler",
+      "steps": 193,
+      "certificate": {
+        "kind": "translation",
+        "decider": "translated cycler",
+        "start": 33,
+        "period": 160,
+        "shift": 32,
+        "span": 40
+      },
+      "checker": "accepted",
+      "reason": "steps 33 and 193 differ by a shift of 32",
+      "mutations": [
+        {
+          "label": "shift off by one",
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 160,
+            "shift": 33,
+            "span": 40
+          },
+          "accepted": false,
+          "reason": "the head moved 32, not 33"
+        },
+        {
+          "label": "period off by one",
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 161,
+            "shift": 32,
+            "span": 40
+          },
+          "accepted": false,
+          "reason": "the head moved 31, not 32"
+        }
+      ]
+    },
+    {
+      "string": "1RB---_0RC---_0LC1RA",
+      "states": 3,
+      "verdict": "heuristic",
+      "steps": 256,
+      "certificate": null,
+      "checker": null,
+      "reason": null,
+      "mutations": []
+    },
+    {
+      "string": "1RB---_------_------_------",
+      "states": 4,
+      "verdict": "halts",
+      "steps": 2,
+      "certificate": {
+        "kind": "halts",
+        "steps": 2
+      },
+      "checker": "accepted",
+      "reason": "replayed 2 steps and the machine halted there",
+      "mutations": [
+        {
+          "label": "one step too many",
+          "certificate": {
+            "kind": "halts",
+            "steps": 3
+          },
+          "accepted": false,
+          "reason": "the machine halts at step 2, not 3"
+        },
+        {
+          "label": "one step too few",
+          "certificate": {
+            "kind": "halts",
+            "steps": 1
+          },
+          "accepted": false,
+          "reason": "the machine halts at step -1, not 1"
+        }
+      ]
+    },
+    {
+      "string": "1RB---_0RA---_------_------",
+      "states": 4,
+      "verdict": "undecided",
+      "steps": 256,
+      "certificate": null,
+      "checker": null,
+      "reason": null,
+      "mutations": []
+    },
+    {
+      "string": "1RB---_0RC---_0RD---_0LC---",
+      "states": 4,
+      "verdict": "cycler",
+      "steps": 65,
+      "certificate": {
+        "kind": "cycle",
+        "decider": "cycler",
+        "confined": true,
+        "start": 33,
+        "period": 2,
+        "span": 3
+      },
+      "checker": "accepted",
+      "reason": "steps 33 and 35 are the same configuration",
+      "mutations": [
+        {
+          "label": "period off by one",
+          "certificate": {
+            "kind": "cycle",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 3,
+            "span": 3
+          },
+          "accepted": false,
+          "reason": "the state differs: 3 then 2"
+        },
+        {
+          "label": "kind relabelled as a translation",
+          "certificate": {
+            "kind": "translation",
+            "decider": "cycler",
+            "confined": true,
+            "start": 33,
+            "period": 2,
+            "span": 3
+          },
+          "accepted": false,
+          "reason": "a translation certificate needs a shift"
+        }
+      ]
+    },
+    {
+      "string": "1RB---_0RC---_0RD---_0LD0RA",
+      "states": 4,
+      "verdict": "heuristic",
+      "steps": 256,
+      "certificate": null,
+      "checker": null,
+      "reason": null,
+      "mutations": []
+    },
+    {
+      "string": "1RB---_0RC---_0RD---_0LD0RB",
+      "states": 4,
+      "verdict": "translated cycler",
+      "steps": 65,
+      "certificate": {
+        "kind": "translation",
+        "decider": "translated cycler",
+        "start": 33,
+        "period": 32,
+        "shift": -32,
+        "span": 55
+      },
+      "checker": "accepted",
+      "reason": "steps 33 and 65 differ by a shift of -32",
+      "mutations": [
+        {
+          "label": "shift off by one",
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 32,
+            "shift": -31,
+            "span": 55
+          },
+          "accepted": false,
+          "reason": "the head moved -32, not -31"
+        },
+        {
+          "label": "period off by one",
+          "certificate": {
+            "kind": "translation",
+            "decider": "translated cycler",
+            "start": 33,
+            "period": 33,
+            "shift": -32,
+            "span": 55
+          },
+          "accepted": false,
+          "reason": "the head moved -33, not -32"
+        }
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "text": "S(2)=6, S(3)=21, S(4)=107 reproduce by exhaustive search",
+      "source": "this pipeline: every tree-normal-form machine up to four states",
+      "verified": true
+    },
+    {
+      "text": "S(5)=47,176,870 is quoted from the proof, not re-proved here",
+      "source": "bbchallenge Collaboration, Determination of the fifth Busy Beaver value, arXiv:2509.12337",
+      "verified": true
+    },
+    {
+      "text": "a certified verdict is a replay the checker accepted; a heuristic one is a guess",
+      "source": "docs/methods.md M5b",
+      "verified": true
+    }
+  ]
+}

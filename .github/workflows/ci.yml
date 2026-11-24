@@ -180,7 +180,7 @@ jobs:
             echo "the preview server never answered on port 4173"
             exit 1
           fi
-          for page in index.html inspector.html stress.html hashlife.html; do
+          for page in index.html inspector.html stress.html verifier.html hashlife.html; do
             npx --no-install lighthouse "http://127.0.0.1:4173/${page}" \
               --only-categories=accessibility \
               --chrome-flags="--headless=new --no-sandbox" \

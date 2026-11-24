@@ -1,0 +1,161 @@
+// The Verifier page: it renders the pipeline's own verdicts and never computes one. Every number on
+// screen comes from products/verifier/manifest.json, so the page cannot disagree with the run.
+
+import {
+  certificateSummary,
+  checkSummary,
+  formatSteps,
+  loadVerifier,
+  residue,
+  verdictBadge,
+  type Labelled,
+  type VerifierProduct,
+} from './lib/verifier';
+
+const base = import.meta.env.BASE_URL;
+
+function element<T extends HTMLElement>(id: string): T {
+  const found = document.getElementById(id);
+  if (found === null) throw new Error(`the page is missing #${id}`);
+  return found as T;
+}
+
+function cell(text: string, scope?: 'row'): HTMLTableCellElement {
+  const node = document.createElement(scope === 'row' ? 'th' : 'td');
+  if (scope === 'row') node.scope = 'row';
+  node.textContent = text;
+  return node;
+}
+
+function renderResidue(product: VerifierProduct): void {
+  const total = residue(product.runs);
+  element('residue').textContent =
+    `${total.undecided.toLocaleString('en-US')} of ${total.machines.toLocaleString('en-US')} ` +
+    `machines are undecided, and ${total.heuristic.toLocaleString('en-US')} more are only ` +
+    'heuristically non-halting.';
+  element('residue-note').textContent =
+    'Undecided means the machine reached the step cap and nothing was proved about it. It is not a ' +
+    'non-halting machine, and no table on this page counts it as one.';
+}
+
+function renderBb(product: VerifierProduct): void {
+  const body = element<HTMLTableSectionElement>('bb-table');
+  body.replaceChildren();
+  for (const run of product.runs) {
+    const row = document.createElement('tr');
+    row.append(
+      cell(String(run.states), 'row'),
+      cell(run.quoted === null ? '—' : run.quoted.toLocaleString('en-US')),
+      cell(run.reproduced === null ? '—' : run.reproduced.toLocaleString('en-US')),
+      cell(run.machines.toLocaleString('en-US')),
+      cell(run.halting.toLocaleString('en-US')),
+      cell(run.certified.toLocaleString('en-US')),
+      cell(run.heuristic.toLocaleString('en-US')),
+      cell(run.undecided.toLocaleString('en-US')),
+    );
+    body.append(row);
+  }
+  const champion = product.champion;
+  const note = document.createElement('p');
+  note.textContent =
+    `S(5) = ${champion.quoted.toLocaleString('en-US')} is quoted, not re-proved. Its champion ` +
+    `${champion.string} halts after ${formatSteps(champion.steps)} steps when this pipeline runs ` +
+    `it. Source: ${champion.source}.`;
+  element('champion').replaceChildren(note);
+}
+
+function renderLabelled(product: VerifierProduct): void {
+  const body = element<HTMLTableSectionElement>('labelled-table');
+  body.replaceChildren();
+  for (const entry of product.labelled) {
+    const badge = verdictBadge(entry.verdict);
+    const row = document.createElement('tr');
+    const machine = document.createElement('th');
+    machine.scope = 'row';
+    machine.append(document.createTextNode(entry.string));
+    const klass = document.createElement('td');
+    klass.className = `badge ${badge.className}`;
+    klass.textContent = `${badge.symbol} ${badge.text}`;
+    row.append(
+      machine,
+      cell(String(entry.states)),
+      klass,
+      cell(formatSteps(entry.steps)),
+      cell(checkSummary(entry)),
+    );
+    body.append(row);
+  }
+}
+
+function renderCertificate(product: VerifierProduct, entry: Labelled): void {
+  element('certificate-summary').textContent =
+    `${entry.string}: ${certificateSummary(entry.certificate)}`;
+  element('certificate-json').textContent =
+    entry.certificate === null
+      ? 'no certificate: the decider guessed and the checker refused the guess'
+      : JSON.stringify(entry.certificate, null, 2);
+  element('certificate-check').textContent = checkSummary(entry);
+  const body = element<HTMLTableSectionElement>('mutation-table');
+  body.replaceChildren();
+  if (entry.mutations.length === 0) {
+    const row = document.createElement('tr');
+    const only = cell('none recorded');
+    only.colSpan = 3;
+    row.append(only);
+    body.append(row);
+    return;
+  }
+  for (const mutation of entry.mutations) {
+    const row = document.createElement('tr');
+    row.append(
+      cell(mutation.label, 'row'),
+      cell(mutation.accepted ? 'accepted' : 'refused'),
+      cell(mutation.reason),
+    );
+    body.append(row);
+  }
+}
+
+function renderClaims(product: VerifierProduct): void {
+  const list = element<HTMLUListElement>('claims');
+  list.replaceChildren();
+  for (const claim of product.claims) {
+    const item = document.createElement('li');
+    item.textContent = `${claim.text} — ${claim.source}`;
+    list.append(item);
+  }
+}
+
+function render(product: VerifierProduct): void {
+  renderResidue(product);
+  renderBb(product);
+  renderLabelled(product);
+  renderClaims(product);
+  const select = element<HTMLSelectElement>('certificate-select');
+  select.replaceChildren();
+  for (const [index, entry] of product.labelled.entries()) {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = `${entry.string} (${entry.verdict})`;
+    select.append(option);
+  }
+  select.addEventListener('change', () => {
+    const chosen = product.labelled[Number(select.value)];
+    if (chosen !== undefined) renderCertificate(product, chosen);
+  });
+  const first = product.labelled[0];
+  if (first !== undefined) renderCertificate(product, first);
+  element('status').textContent =
+    `product v${product.version}, seed ${product.seed}, cap ${product.cap} steps, ` +
+    `fingerprints every ${product.check_every} steps.`;
+}
+
+loadVerifier(base)
+  .then(render)
+  .catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    const banner = element('error');
+    banner.textContent = `Cannot read the verifier product: ${message}`;
+    banner.hidden = false;
+    element('status').textContent = 'the page has nothing to draw until the product loads';
+  });
