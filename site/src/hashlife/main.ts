@@ -1,11 +1,15 @@
-// The HashLife page. The tree lives in the wasm module; this file decides what window to ask for,
-// draws the answer at the level of detail the zoom implies, and reports the tree's own numbers.
+// The HashLife page. The tree lives in the wasm module, in a worker; this file decides what window
+// to ask for, draws the answer at the level of detail the zoom implies, and reports the tree's own
+// numbers.
 //
-// Two things are deliberate. First, a node smaller than a pixel draws as its density, so zooming
+// Three things are deliberate. First, a node smaller than a pixel draws as its density, so zooming
 // out shows structure instead of noise. Second, the sharing ratio and the memory gauge are the
 // engine's counts, not estimates: a page that guessed them would be lying about the compression.
+// Third, the module runs off the main thread — the metapixel array takes about six seconds to read,
+// and a page frozen for six seconds reads as a broken page.
 
 import { looksLikeMacrocell, parseMacrocell } from './lib/macrocell';
+import { createRemoteHashLife, type Readout, type RemoteHashLife } from './lib/remote';
 import { PatternError, parseRle, population, spread, type Pattern } from './lib/rle';
 import {
   cellsPerPixel,
@@ -17,11 +21,9 @@ import {
   stepOptions,
   type View,
 } from './lib/view';
-import { createHashLife, createHashLifeFromMacrocell, type HashLife } from './lib/wasm';
 
 const SIZE = 640;
-const GUN = `x = 36, y = 9, rule = B3/S23
-24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o!`;
+const GUN = `x = 36, y = 9, rule = B3/S23\r\n24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o!`;
 const BLOCK = 'x = 2, y = 2\n2o$2o!';
 const LIBRARY: Record<string, string> = { gun: GUN, block: BLOCK };
 
@@ -61,10 +63,12 @@ const FIXTURES: Record<string, Fixture> = {
   },
 };
 
-let hash: HashLife | null = null;
+let hash: RemoteHashLife | null = null;
 let view: View = { x: 0, y: 0, scale: 2 };
 let step = 1;
 let patternName = 'gun';
+/** The root's level, kept from the last readout: the zoom handlers clamp against it synchronously. */
+let rootLevel = 0;
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -82,16 +86,15 @@ function status(message: string): void {
   element('status').textContent = message;
 }
 
-function paint(): void {
-  if (hash === null) return;
+async function paint(life: RemoteHashLife, shown: Readout): Promise<void> {
   const canvas = element<HTMLCanvasElement>('plane');
   const context = canvas.getContext('2d');
   if (context === null) {
     fail('this browser has no 2d canvas context, so the plane cannot be drawn');
     return;
   }
-  const level = levelForScale(view.scale, hash.level());
-  const pixels = hash.view(level, Math.round(view.x), Math.round(view.y), SIZE);
+  const level = levelForScale(view.scale, shown.level);
+  const pixels = await life.view(level, Math.round(view.x), Math.round(view.y), SIZE);
   const image = context.createImageData(SIZE, SIZE);
   const area = Math.pow(4, level);
   for (let index = 0; index < SIZE * SIZE; index++) {
@@ -114,30 +117,28 @@ function paint(): void {
       : `One pixel per level-${level} node: each is drawn as the population density of a ${Math.pow(2, level)}×${Math.pow(2, level)} square.`;
 }
 
-function renderReadout(): void {
-  if (hash === null) return;
-  const bounds = hash.bounds();
+function renderReadout(shown: Readout): void {
+  const bounds = shown.bounds;
   element('readout').textContent =
-    `generation ${hash.generation().toLocaleString('en-US')} · ` +
-    `population ${hash.population().toLocaleString('en-US')} · ` +
-    `root level ${hash.level()} · ` +
+    `generation ${shown.generation.toLocaleString('en-US')} · ` +
+    `population ${shown.population.toLocaleString('en-US')} · ` +
+    `root level ${shown.level} · ` +
     `live box ${bounds.maxX - bounds.minX + 1}×${bounds.maxY - bounds.minY + 1}`;
   element('step-note').textContent =
     `Each advance asks for ${formatStep(step)}; the engine decomposes that into the largest ` +
     'compressed steps the tree can hold, and falls back to a one-generation sweep when it cannot.';
 }
 
-function renderTree(): void {
-  if (hash === null) return;
+function renderTree(shown: Readout): void {
   const body = element<HTMLTableSectionElement>('tree-table');
   body.replaceChildren();
   const rows: Array<[string, string]> = [
-    ['nodes', hash.nodes().toLocaleString('en-US')],
-    ['nominal cells', Math.pow(4, hash.level()).toLocaleString('en-US')],
-    ['sharing', formatSharing(hash.nodes(), hash.level())],
-    ['node cap', hash.cap().toLocaleString('en-US')],
-    ['cap hits', hash.capHits().toLocaleString('en-US')],
-    ['generation', hash.generation().toLocaleString('en-US')],
+    ['nodes', shown.nodes.toLocaleString('en-US')],
+    ['nominal cells', Math.pow(4, shown.level).toLocaleString('en-US')],
+    ['sharing', formatSharing(shown.nodes, shown.level)],
+    ['node cap', shown.cap.toLocaleString('en-US')],
+    ['cap hits', shown.capHits.toLocaleString('en-US')],
+    ['generation', shown.generation.toLocaleString('en-US')],
   ];
   for (const [label, value] of rows) {
     const row = document.createElement('tr');
@@ -149,37 +150,38 @@ function renderTree(): void {
     row.append(name, cell);
     body.append(row);
   }
-  const gauge = memory(hash.nodes(), hash.cap());
+  const gauge = memory(shown.nodes, shown.cap);
   element('memory-gauge').setAttribute('aria-valuenow', String(Math.round(gauge.fraction * 100)));
   element('gauge-fill').style.width = `${Math.round(gauge.fraction * 100)}%`;
   element('gauge-label').textContent = `Memory: ${gauge.text}`;
   element('cap-note').textContent =
-    hash.capHits() > 0
+    shown.capHits > 0
       ? 'The cap has been hit: the tree is refusing to grow rather than exceeding its budget.'
       : 'The cap has not been hit.';
 }
 
-function syncUrl(): void {
-  if (hash === null) return;
+function syncUrl(shown: Readout): void {
   const url = new URL(window.location.href);
   url.searchParams.set('pattern', patternName);
-  url.searchParams.set('gen', String(hash.generation()));
+  url.searchParams.set('gen', String(shown.generation));
   url.searchParams.set('scale', String(Math.round(view.scale * 1000) / 1000));
   url.searchParams.set('x', String(Math.round(view.x)));
   url.searchParams.set('y', String(Math.round(view.y)));
   window.history.replaceState(null, '', url);
 }
 
-function render(): void {
-  paint();
-  renderReadout();
-  renderTree();
-  syncUrl();
+async function render(): Promise<void> {
+  if (hash === null) return;
+  const shown = await hash.readout();
+  rootLevel = shown.level;
+  await paint(hash, shown);
+  renderReadout(shown);
+  renderTree(shown);
+  syncUrl(shown);
 }
 
-function fit(): void {
-  if (hash === null) return;
-  const bounds = hash.bounds();
+function fit(shown: Readout): void {
+  const bounds = shown.bounds;
   const span = Math.max(bounds.maxX - bounds.minX + 1, bounds.maxY - bounds.minY + 1, 1);
   view = clampView(
     {
@@ -187,34 +189,41 @@ function fit(): void {
       x: Math.max(0, bounds.minX - span * 0.2),
       y: Math.max(0, bounds.minY - span * 0.2),
     },
-    Math.pow(2, hash.level()),
+    Math.pow(2, shown.level),
   );
 }
 
-/** Adopt a tree the engine built: the page only decides what window to ask for. */
-function adopt(loaded: HashLife, name: string, summary: string): void {
-  hash = loaded;
+/** Adopt a tree the worker built: the page only decides what window to ask for. */
+async function adopt(
+  life: RemoteHashLife,
+  name: string,
+  summary: string,
+  shown: Readout,
+): Promise<void> {
+  hash = life;
   patternName = name;
-  fit();
-  render();
+  rootLevel = shown.level;
+  fit(shown);
   element('error').hidden = true;
   status(summary);
+  await render();
 }
 
 async function load(pattern: Pattern, name: string): Promise<void> {
-  let loaded: HashLife;
+  let loaded: { life: RemoteHashLife; readout: Readout };
   try {
-    loaded = await createHashLife(pattern);
+    loaded = await createRemoteHashLife({ pattern });
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
     status('nothing to draw: the engine refused the pattern');
     return;
   }
-  adopt(
-    loaded,
+  await adopt(
+    loaded.life,
     name,
     `Loaded ${pattern.width}×${pattern.height}, ${population(pattern).toLocaleString('en-US')} ` +
       `live cells, ${pattern.rule ?? 'the default rule'}.`,
+    loaded.readout,
   );
 }
 
@@ -223,20 +232,21 @@ async function load(pattern: Pattern, name: string): Promise<void> {
  * array is 38 MB as a byte grid and the module never allocates it.
  */
 async function loadMacrocell(text: string, name: string): Promise<void> {
-  let loaded: HashLife;
+  let loaded: { life: RemoteHashLife; readout: Readout };
   try {
-    loaded = await createHashLifeFromMacrocell(text);
+    loaded = await createRemoteHashLife({ text });
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
     status('nothing to draw: the engine refused the macrocell');
     return;
   }
-  const bounds = loaded.bounds();
-  adopt(
-    loaded,
+  const bounds = loaded.readout.bounds;
+  await adopt(
+    loaded.life,
     name,
     `Loaded ${bounds.maxX - bounds.minX + 1}×${bounds.maxY - bounds.minY + 1}, ` +
-      `${loaded.population().toLocaleString('en-US')} live cells from a macrocell.`,
+      `${loaded.readout.population.toLocaleString('en-US')} live cells from a macrocell.`,
+    loaded.readout,
   );
 }
 
@@ -278,32 +288,40 @@ function wire(): void {
   stepSelect.value = String(step);
   stepSelect.addEventListener('change', () => {
     step = Number(stepSelect.value);
-    renderReadout();
+    void (async () => {
+      if (hash === null) return;
+      renderReadout(await hash.readout());
+    })();
   });
 
   element('advance').addEventListener('click', () => {
-    if (hash === null) return;
-    if (!hash.step(step)) {
-      fail('the engine refused that step: the node cap or the level limit stopped it');
-    }
-    render();
+    void (async () => {
+      if (hash === null) return;
+      if (!(await hash.step(step))) {
+        fail('the engine refused that step: the node cap or the level limit stopped it');
+      }
+      await render();
+    })();
   });
 
   element('zoom-in').addEventListener('click', () => {
     view = { ...view, scale: view.scale * 2 };
-    if (hash !== null) view = clampView(view, Math.pow(2, hash.level()));
-    render();
+    if (hash !== null) view = clampView(view, Math.pow(2, rootLevel));
+    void render();
   });
 
   element('zoom-out').addEventListener('click', () => {
     view = { ...view, scale: view.scale / 2 };
-    if (hash !== null) view = clampView(view, Math.pow(2, hash.level()));
-    render();
+    if (hash !== null) view = clampView(view, Math.pow(2, rootLevel));
+    void render();
   });
 
   element('fit').addEventListener('click', () => {
-    fit();
-    render();
+    void (async () => {
+      if (hash === null) return;
+      fit(await hash.readout());
+      await render();
+    })();
   });
 
   element<HTMLSelectElement>('pattern').addEventListener('change', (event) => {
@@ -331,11 +349,8 @@ function wire(): void {
       if (hash === null) return;
       event.preventDefault();
       const factor = event.deltaY < 0 ? 2 : 0.5;
-      view = clampView(
-        { ...view, scale: view.scale * factor },
-        Math.pow(2, hash.level()),
-      );
-      render();
+      view = clampView({ ...view, scale: view.scale * factor }, Math.pow(2, rootLevel));
+      void render();
     },
     { passive: false },
   );
@@ -348,7 +363,7 @@ function start(): void {
   const text = LIBRARY[requested] ?? GUN;
   patternName = LIBRARY[requested] === undefined ? 'gun' : requested;
   const pattern = parseRle(text);
-  void load(pattern, patternName).then(() => {
+  void load(pattern, patternName).then(async () => {
     if (hash === null) return;
     // `Number(null)` is 0, which would look finite and clamp the view to the coarsest level, so a
     // missing parameter is checked for by name rather than by value.
@@ -357,13 +372,13 @@ function start(): void {
     const y = Number(params.get('y'));
     const placed = params.has('scale') && params.has('x') && params.has('y');
     if (placed && Number.isFinite(scale) && scale > 0 && Number.isFinite(x) && Number.isFinite(y)) {
-      view = clampView({ scale, x, y }, Math.pow(2, hash.level()));
+      view = clampView({ scale, x, y }, Math.pow(2, rootLevel));
     }
     const gen = Number(params.get('gen'));
     if (Number.isInteger(gen) && gen > 0) {
-      hash.step(gen);
+      await hash.step(gen);
     }
-    render();
+    await render();
   });
 }
 

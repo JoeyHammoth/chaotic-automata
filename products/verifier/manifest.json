@@ -3,14 +3,15 @@
   "generated_by": "computation_atlas.verifier",
   "seed": 97,
   "cap": 256,
-  "cryptid_steps": 100000000,
+  "cryptid_steps": 1000000000,
   "cryptid_samples": [
     1000,
     10000,
     100000,
     1000000,
     10000000,
-    100000000
+    100000000,
+    1000000000
   ],
   "check_every": 32,
   "heuristic_span": 64,
@@ -639,7 +640,7 @@
       "reason": null,
       "trace": {
         "halted": false,
-        "steps": 100000000,
+        "steps": 1000000000,
         "samples": [
           {
             "steps": 1000,
@@ -676,6 +677,12 @@
             "span": 15454,
             "drift": 8036,
             "delta": 10560
+          },
+          {
+            "steps": 1000000000,
+            "span": 48827,
+            "drift": 7040,
+            "delta": 33373
           }
         ]
       },
@@ -698,7 +705,7 @@
       "reason": null,
       "trace": {
         "halted": false,
-        "steps": 100000000,
+        "steps": 1000000000,
         "samples": [
           {
             "steps": 1000,
@@ -735,6 +742,12 @@
             "span": 14148,
             "drift": 9341,
             "delta": 9715
+          },
+          {
+            "steps": 1000000000,
+            "span": 44298,
+            "drift": 33102,
+            "delta": 30150
           }
         ]
       },
@@ -757,7 +770,7 @@
       "reason": null,
       "trace": {
         "halted": false,
-        "steps": 100000000,
+        "steps": 1000000000,
         "samples": [
           {
             "steps": 1000,
@@ -794,6 +807,12 @@
             "span": 25756,
             "drift": 16615,
             "delta": 17832
+          },
+          {
+            "steps": 1000000000,
+            "span": 105360,
+            "drift": 94439,
+            "delta": 79604
           }
         ]
       },
@@ -816,7 +835,7 @@
       "reason": null,
       "trace": {
         "halted": false,
-        "steps": 100000000,
+        "steps": 1000000000,
         "samples": [
           {
             "steps": 1000,
@@ -853,6 +872,12 @@
             "span": 1663,
             "drift": 334,
             "delta": 860
+          },
+          {
+            "steps": 1000000000,
+            "span": 3248,
+            "drift": 825,
+            "delta": 1585
           }
         ]
       },

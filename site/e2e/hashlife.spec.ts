@@ -53,7 +53,13 @@ test('a breeder and a metapixel array load from their published pattern files', 
   await expect(status).toContainText('38 live cells');
   await expect(status).toContainText("Riley's_breeder");
 
+  // The load happens in a worker, so the page's own thread keeps answering while the tree is
+  // built: a round trip started during the load does not wait six seconds for it.
+  const started = Date.now();
   await pattern.selectOption('metapixelArray');
+  await page.evaluate(() => performance.now());
+  expect(Date.now() - started).toBeLessThan(1000);
+
   await expect(status).toContainText('6154×6154', { timeout: 40_000 });
   await expect(status).toContainText('258,764 live cells');
   // Read as a macrocell, so the page never materialises the 38 MB grid the same pattern is as

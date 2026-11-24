@@ -125,3 +125,31 @@ Conditions: 12th Gen Intel Core i7-12650H (16 logical cores, one used), 16 GB, W
 (10.0.26200), rustc 1.100.0, release profile (`opt-level = 3`). Wall clock, including the root
 rebuilds. These numbers are not comparable with the atlas numbers above, which were taken in a
 browser under a throttled mobile profile.
+
+### Loading the metapixel array
+
+`crates/ca-core/examples/macrocell_bench.rs`, run on 2026-11-25 with
+`cargo run --release -p ca-core --example macrocell_bench`. The fixture is the generated
+`site/public/fixtures/otcametapixel-array.mc` (1,740,165 bytes), 258,764 live cells in 6154×6154,
+rule `B3/S23`, the page's node cap of 4,194,304. Three runs each, median reported.
+
+| Path | Input handed to the loader | Wall time | Nodes | Arena and index |
+|---|---|---|---|---|
+| Macrocell | 1,699 KB of M2 text | 3,005 ms | 987,560 | 38 MB |
+| Grid | 36 MB of cells | 2,517 ms | 987,560 | 38 MB |
+
+Both rows build the same tree — the example asserts it on the array and the test suite pins it on
+Golly's glider — so the comparison is the load, not the result. The macrocell reader is the slower
+of the two at building it, by about a fifth: it reads the file's own quadtree, collects the cells and
+rebuilds once at the level a step needs, where the grid loader inserts from a grid that is already
+there.
+
+What it buys is everything before that point. The grid row is timed from a 36 MB grid already in
+memory; producing that grid is the page's own flattening step, which is JavaScript, allocates the
+36 MB and is not in this table — the macrocell path has no such step at all. In the browser the
+difference shows up as module memory: **69 MB** for the macrocell path against **102 MB** through the
+grid, measured on the built module with one fresh instance per pattern, because wasm memory never
+shrinks and a shared instance would report the peak of whatever ran first.
+
+The load runs in a worker, so the six seconds it takes block that thread rather than the page: the
+page paints its shell, and the readout and the first window arrive as messages.
