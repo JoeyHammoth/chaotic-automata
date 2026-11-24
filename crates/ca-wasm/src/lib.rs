@@ -119,6 +119,9 @@ pub extern "C" fn hl_load(mask: u32, width: u32, height: u32) -> u32 {
         match HashLife::from_cells(Rule::from_mask(mask), width, height, &INPUT, HASH_CAP) {
             Ok(hash) => {
                 HASH = Some(hash);
+                // The grid is dead weight once the tree exists, and a metapixel array's grid is
+                // tens of megabytes; holding it would double what the exhibit costs.
+                INPUT = Vec::new();
                 1
             }
             Err(_) => 0,

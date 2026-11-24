@@ -628,6 +628,32 @@
       "certificate": null,
       "checker": null,
       "reason": null,
+      "trace": {
+        "halted": false,
+        "steps": 1000000,
+        "samples": [
+          {
+            "steps": 1000,
+            "span": 54,
+            "drift": 50
+          },
+          {
+            "steps": 10000,
+            "span": 159,
+            "drift": 80
+          },
+          {
+            "steps": 100000,
+            "span": 498,
+            "drift": 424
+          },
+          {
+            "steps": 1000000,
+            "span": 1554,
+            "drift": 1038
+          }
+        ]
+      },
       "source": "https://wiki.bbchallenge.org/wiki/Cryptids"
     },
     {
@@ -645,6 +671,32 @@
       "certificate": null,
       "checker": null,
       "reason": null,
+      "trace": {
+        "halted": false,
+        "steps": 1000000,
+        "samples": [
+          {
+            "steps": 1000,
+            "span": 47,
+            "drift": 33
+          },
+          {
+            "steps": 10000,
+            "span": 137,
+            "drift": 15
+          },
+          {
+            "steps": 100000,
+            "span": 434,
+            "drift": 93
+          },
+          {
+            "steps": 1000000,
+            "span": 1383,
+            "drift": 632
+          }
+        ]
+      },
       "source": "https://wiki.bbchallenge.org/wiki/Cryptids"
     },
     {
@@ -662,6 +714,32 @@
       "certificate": null,
       "checker": null,
       "reason": null,
+      "trace": {
+        "halted": false,
+        "steps": 1000000,
+        "samples": [
+          {
+            "steps": 1000,
+            "span": 61,
+            "drift": 23
+          },
+          {
+            "steps": 10000,
+            "span": 261,
+            "drift": 163
+          },
+          {
+            "steps": 100000,
+            "span": 748,
+            "drift": 743
+          },
+          {
+            "steps": 1000000,
+            "span": 2220,
+            "drift": 129
+          }
+        ]
+      },
       "source": "https://wiki.bbchallenge.org/wiki/Cryptids"
     },
     {
@@ -679,6 +757,32 @@
       "certificate": null,
       "checker": null,
       "reason": null,
+      "trace": {
+        "halted": false,
+        "steps": 1000000,
+        "samples": [
+          {
+            "steps": 1000,
+            "span": 25,
+            "drift": 4
+          },
+          {
+            "steps": 10000,
+            "span": 62,
+            "drift": 17
+          },
+          {
+            "steps": 100000,
+            "span": 151,
+            "drift": 94
+          },
+          {
+            "steps": 1000000,
+            "span": 304,
+            "drift": 69
+          }
+        ]
+      },
       "source": "https://wiki.bbchallenge.org/wiki/Cryptids"
     }
   ],

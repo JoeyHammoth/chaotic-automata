@@ -112,6 +112,38 @@ export function tile(pattern: Pattern, columns: number, rows: number): Pattern {
   return { ...pattern, width, height, cells };
 }
 
+export function nextPowerOfTwo(value: number): number {
+  let power = 1;
+  while (power < value) power *= 2;
+  return power;
+}
+
+/**
+ * Repeat a pattern on a power-of-two grid, one copy per square.
+ *
+ * This is what makes a metapixel array affordable. Copies placed edge to edge sit at different
+ * phases of the quadtree — 2058 is not a power of two — so no subtree is ever equal and the tree
+ * costs four times a single copy. Placed at a power-of-two spacing, every copy is the same subtree
+ * and the tree shares them: four metapixels then cost one metapixel plus a handful of nodes.
+ */
+export function spread(pattern: Pattern, columns: number, rows: number): Pattern {
+  if (columns < 1 || rows < 1) throw new PatternError('a tiling needs at least one copy');
+  const spacing = nextPowerOfTwo(Math.max(pattern.width, pattern.height));
+  const width = (columns - 1) * spacing + pattern.width;
+  const height = (rows - 1) * spacing + pattern.height;
+  const cells = new Uint8Array(width * height);
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      for (let y = 0; y < pattern.height; y++) {
+        const from = y * pattern.width;
+        const to = (row * spacing + y) * width + column * spacing;
+        cells.set(pattern.cells.subarray(from, from + pattern.width), to);
+      }
+    }
+  }
+  return { ...pattern, width, height, cells };
+}
+
 export function population(pattern: Pattern): number {
   let total = 0;
   for (const cell of pattern.cells) total += cell;

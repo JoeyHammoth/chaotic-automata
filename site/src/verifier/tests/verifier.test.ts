@@ -4,6 +4,7 @@ import {
   certificateSummary,
   checkSummary,
   cryptidSummary,
+  cryptidTraceLine,
   formatSteps,
   residue,
   verdictBadge,
@@ -107,11 +108,26 @@ function cryptid(over: Partial<Cryptid>): Cryptid {
     certificate: null,
     checker: null,
     reason: null,
+    trace: {
+      halted: false,
+      steps: 1_000_000,
+      samples: [
+        { steps: 1_000, span: 30, drift: 12 },
+        { steps: 1_000_000, span: 1_554, drift: 1_038 },
+      ],
+    },
     ...over,
   };
 }
 
 describe('cryptids', () => {
+  it('reports the long run as growth rather than as a verdict', () => {
+    const line = cryptidTraceLine(cryptid({}).trace);
+    expect(line).toContain('no halt in 1,000,000 steps');
+    expect(line).toContain('1,554 at 1,000,000');
+    expect(line).not.toContain('proved');
+  });
+
   it('reports the guess and says in the same breath that it proves nothing', () => {
     const summary = cryptidSummary(cryptid({}));
     expect(summary.verdict).toContain('heuristic after 256 steps');
