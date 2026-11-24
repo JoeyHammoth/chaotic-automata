@@ -160,6 +160,50 @@ export function cryptidTraceLine(trace: CryptidTrace): string {
   return `no halt in ${steps} steps; span ${points}`;
 }
 
+export interface TracePoint {
+  x: number;
+  y: number;
+  steps: number;
+  span: number;
+}
+
+export interface TraceChart {
+  points: TracePoint[];
+  maxSpan: number;
+  /** The words the chart carries for a reader who cannot see it. */
+  label: string;
+}
+
+/**
+ * Geometry for a cryptid's growth chart: steps across on a log axis, span up.
+ *
+ * A log axis is the honest one — the samples are decades apart, so on a linear axis three of the four
+ * points pile up against the left edge. The chart carries its numbers in an aria-label and the
+ * sentence stays beside it, so the picture is an addition to the words, never a replacement.
+ */
+export function cryptidTraceChart(trace: CryptidTrace, width = 132, height = 44): TraceChart {
+  const samples = trace.samples.filter((sample) => sample.steps > 0);
+  const maxSpan = Math.max(1, ...samples.map((sample) => sample.span));
+  const first = samples[0];
+  const last = samples[samples.length - 1];
+  const low = Math.log10(first?.steps ?? 1);
+  const high = Math.log10(last?.steps ?? 1);
+  const decades = high - low || 1;
+  const points = samples.map((sample) => ({
+    x: 4 + ((Math.log10(sample.steps) - low) / decades) * (width - 8),
+    y: height - 6 - (sample.span / maxSpan) * (height - 12),
+    steps: sample.steps,
+    span: sample.span,
+  }));
+  const label =
+    first === undefined || last === undefined
+      ? `no growth recorded over ${trace.steps.toLocaleString('en-US')} steps`
+      : `span grows from ${first.span.toLocaleString('en-US')} cells at ` +
+        `${first.steps.toLocaleString('en-US')} steps to ${last.span.toLocaleString('en-US')} at ` +
+        `${last.steps.toLocaleString('en-US')} steps`;
+  return { points, maxSpan, label };
+}
+
 export function formatSteps(steps: number | null): string {
   if (steps === null) return 'did not halt inside the cap';
   return steps.toLocaleString('en-US');

@@ -175,6 +175,9 @@ export function looksLikeMacrocell(text: string): boolean {
  * is proportional to the live cells rather than to the square they sit in. That keeps the writer
  * small enough to trust, and the round-trip against a published RLE is what tests the pair.
  *
+ * Leaves are written the way Golly writes them: eight rows per leaf, trailing dead cells trimmed,
+ * every row closed with `$`, empty rows kept. A Golly export is compared byte for byte in the tests.
+ *
  * The published metapixel macrocell is not reachable from here — conwaylife.com refuses automated
  * fetches and no mirror carries the `.mc` — so this writer is how the macrocell path gets a large
  * pattern to read. It is our export, not Golly's, and the test says so by comparing cell for cell
@@ -209,7 +212,6 @@ export function writeMacrocell(pattern: Pattern, generation = 0): string {
         rows.push(row.replace(/\.+$/, ''));
       }
       if (!live) continue;
-      while (rows.length > 0 && rows[rows.length - 1] === '') rows.pop();
       leaves[by * per + bx] = next++;
       lines.push(rows.map((row) => `${row}$`).join(''));
     }

@@ -41,6 +41,10 @@ test('a cryptid is shown with its string and without a verdict', async ({ page }
   // The long run is shown as growth, not as a verdict.
   await expect(table).toContainText('no halt in 1,000,000 steps');
   await expect(table).toContainText('span');
+  // The growth is also drawn, and the drawing says its numbers out loud.
+  const chart = table.locator('svg.trace').first();
+  await expect(chart).toHaveAttribute('aria-label', /1,554 at 1,000,000/);
+  await expect(chart.locator('circle')).toHaveCount(4);
   await expect(page.locator('#cryptid-note')).toContainText('not evidence');
 });
 

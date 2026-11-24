@@ -4,6 +4,7 @@ import {
   certificateSummary,
   checkSummary,
   cryptidSummary,
+  cryptidTraceChart,
   cryptidTraceLine,
   formatSteps,
   residue,
@@ -121,6 +122,16 @@ function cryptid(over: Partial<Cryptid>): Cryptid {
 }
 
 describe('cryptids', () => {
+  it('charts the growth on a log axis, with the numbers in words', () => {
+    const chart = cryptidTraceChart(cryptid({}).trace);
+    expect(chart.points).toHaveLength(2);
+    // Later samples are further right, and more span is higher up (smaller y).
+    expect(chart.points[0]!.x).toBeLessThan(chart.points[1]!.x);
+    expect(chart.points[0]!.y).toBeGreaterThan(chart.points[1]!.y);
+    expect(chart.label).toContain('1,554 at 1,000,000');
+    expect(chart.label).not.toContain('proved');
+  });
+
   it('reports the long run as growth rather than as a verdict', () => {
     const line = cryptidTraceLine(cryptid({}).trace);
     expect(line).toContain('no halt in 1,000,000 steps');

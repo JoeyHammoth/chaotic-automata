@@ -15,12 +15,9 @@ static mut INPUT: Vec<u8> = Vec::new();
 static mut VIEW: Vec<u8> = Vec::new();
 static mut BOUNDS: [i32; 4] = [0; 4];
 
-/// The node cap the zoom UI runs under. Two million nodes is about 64 MB of arena: enough for a
-/// gun or a metapixel array, small enough that the memory gauge has something to show.
-// Four million nodes. A metapixel array is the largest thing the page offers: four copies of a
-// 2058-cell unit cell sit at different quadtree phases, so they cannot share subtrees and cost four
-// times what one copy costs (about 535k nodes each). The gauge shows the fraction used, and the cap
-// is still enforced rather than quietly grown.
+/// The node cap the zoom UI runs under. A metapixel array is the largest thing the page offers:
+/// four copies of a 2058-cell unit cell cost 987,560 nodes and about 30 MB of arena. The gauge shows
+/// the fraction used, and the cap is still enforced rather than quietly grown.
 const HASH_CAP: usize = 1 << 22;
 
 /// Build a grid. Returns 1 on success, 0 if the dimensions or rule are invalid.

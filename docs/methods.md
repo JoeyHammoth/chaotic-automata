@@ -340,21 +340,34 @@ cross-checked against the reference over long runs.
 the population of the node that pixel covers, and the node count, cap and cap hits for the gauge.
 The page renders at level `floor(log2(cells per pixel))`, so a node smaller than a pixel draws as
 its density and a metapixel-sized pattern stays legible when zoomed out. The module's node cap is
-4,194,304; the 2×2 metapixel array uses 987,560 of them and about 279 MB of module memory, and the
+4,194,304; the 2×2 metapixel array uses 987,560 of them and about 102 MB of module memory, and the
 gauge shows that fraction, so the heaviest exhibit states its cost instead of hiding it.
 
 Spacing the four copies one 4096-square apart is what halves that. Edge to edge, copies of a
 2058-cell unit cell sit at different phases of the quadtree — 2058 is not a power of two — so no
-subtree is ever equal and the array costs 2,307,268 nodes and about 590 MB. At a power-of-two
+subtree is ever equal and the array costs 2,307,268 nodes and about 274 MB. At a power-of-two
 spacing the quadrants do match, but only partly: the engine centres every pattern in its root, so
-two copies still share a quadrant and the saving is 2.4× rather than the 4× a perfect alignment
-would give. Both numbers are measured against the built module, not estimated.
+two copies still share a quadrant and the saving is 2.7× rather than the 4× a perfect alignment
+would give. Both numbers are measured against the built module, one fresh instance per pattern,
+because wasm memory never shrinks and a shared instance would report the peak of whatever ran first.
+
+**The arena and the index were packed after that.** A node is 32 bytes rather than 40: the level is a
+`u8` and the memoised result is a bare id with a sentinel, where `Option<NodeId>` spends eight bytes
+for four. The index is an open-addressed table of ids whose key is the node's own four children — 4
+bytes a slot against a `HashMap` entry's 24, about 8 MB on the array instead of 50. Four children fix
+a node's level, so dropping the level from the key is sound, and
+`the_index_finds_every_interned_node` is the check: it walks every node after sixteen generations and
+demands each one back from the index, which fails if two nodes ever shared a key. The array went from
+279 MB to 102 MB with the node count unchanged at 987,560.
 
 **The writer.** `writeMacrocell` emits the same M2 format the reader accepts, and the tests
-round-trip the whole 2058-square metapixel through it cell for cell (2.4 s, 30k nodes). That writer
-is this project's export, not Golly's: conwaylife.com refuses automated fetches and no reachable
-mirror carries the `.mc`, so the genuine Golly artefact in the tests remains the leaf quoted in its
-documentation. Saying otherwise would be the sort of claim this page exists to avoid. The step control offers
+round-trip the whole 2058-square metapixel through it cell for cell (2.4 s, 30k nodes). The leaf
+format is not guessed: the tests carry Golly's own 57-byte export of a glider, committed unmodified
+by the IOCCC 2019 entry *dogon* (`ioccc-src/winner`, `2019/dogon/glider.mc`) — the only
+Golly-written `.mc` reachable from here — and assert that our writer produces that leaf byte for
+byte, and that our reader turns Golly's file back into the glider it drew. Golly's file differs from
+ours only in its `#C` comment and the extra root node it pads the pattern into, which records where
+the pattern sat in its universe and not a difference in the format. The step control offers
 powers of two because a compressed step is one, the tree view reports nodes against `4^level`
 nominal cells, and the URL carries the pattern, generation, scale and origin, so a view is
 shareable.
@@ -582,6 +595,13 @@ reported as what that run is: a guess with no certificate, next to the wiki's ow
 one. The page says in the same row that the run proves nothing about halting, because a cryptid is
 quoted precisely because nobody knows. This is an exhibit of the classification, not a search: the
 six-state space is not enumerable here, and nothing in the product counts a cryptid as decided.
+
+**The growth is measured, and drawn.** Each cryptid also runs for a million transitions on the array
+tape, sampling the written span at 10³, 10⁴, 10⁵ and 10⁶ steps: 1,554, 1,383, 2,220 and 304 cells at
+the last sample, none of them halted. The row draws the span against a log step axis and carries the
+same numbers in its `aria-label`, so the chart adds a picture to the sentence rather than replacing
+it — a reader without the chart still gets every number. Growth is the shape of the walk and not a
+proof: the sentence beside the chart still says a million steps decide nothing.
 
 What is not claimed: the checker is a second implementation, not a proof, and it says only "this
 certificate replays". BB(5) is quoted from the paper, not re-proved here; the four-state sweep is
