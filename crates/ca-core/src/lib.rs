@@ -12,7 +12,7 @@ pub mod reference;
 pub mod rule;
 pub mod seed;
 
-pub use hashlife::{HashLife, HashLifeError, NodeId};
+pub use hashlife::{HashLife, HashLifeError, MacrocellError, NodeId};
 pub use packed::{EngineError, PackedEngine};
 pub use reference::ReferenceEngine;
 pub use rule::{Rule, RuleError};

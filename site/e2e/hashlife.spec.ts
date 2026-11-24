@@ -56,8 +56,10 @@ test('a breeder and a metapixel array load from their published pattern files', 
   await pattern.selectOption('metapixelArray');
   await expect(status).toContainText('6154×6154', { timeout: 40_000 });
   await expect(status).toContainText('258,764 live cells');
-  // Spaced one 4096-square apart, the four copies are one shared subtree rather than four.
-  await expect(page.locator('#tree-table')).toContainText('nodes');
+  // Read as a macrocell, so the page never materialises the 38 MB grid the same pattern is as
+  // bytes — and the tree is the one the grid loader builds, node for node.
+  await expect(status).toContainText('from a macrocell');
+  await expect(page.locator('#tree-table')).toContainText('987,560');
 
   // Zoomed out, four metapixels are nodes rather than cells.
   for (let i = 0; i < 8; i++) await page.getByRole('button', { name: 'Zoom out' }).click();

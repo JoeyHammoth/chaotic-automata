@@ -65,6 +65,13 @@ describe('the macrocell writer', () => {
     expect(Array.from(pattern.cells)).toEqual([0, 1, 0, 0, 0, 1, 1, 1, 1]);
   });
 
+  it('canonicalises the rule a source file spelled loosely', () => {
+    // The published metapixel RLE says `b3/s23`; a macrocell is read by programs that expect the
+    // canonical string, and the engine's reader compares it against the rule it was opened with.
+    const loose = parseRle('x = 2, y = 2, rule = b3/s23\n2o$2o!');
+    expect(writeMacrocell(loose)).toContain('#R B3/S23');
+  });
+
   it('writes the header the reader expects', () => {
     const block = parseRle('x = 2, y = 2, rule = B3/S23\n2o$2o!');
     const text = writeMacrocell(block, 7);

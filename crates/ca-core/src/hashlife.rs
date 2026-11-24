@@ -36,6 +36,10 @@ pub type NodeId = u32;
 /// The deepest level the engine will build. `2^30` cells on an edge is past any memory budget.
 pub const MAX_LEVEL: u32 = 30;
 
+/// A macrocell leaf: eight rows of eight cells, the shallowest node the format writes.
+const LEAF_LEVEL: u32 = 3;
+const LEAF_SIDE: usize = 8;
+
 /// Why a [`HashLife`] operation could not be completed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HashLifeError {
@@ -61,6 +65,39 @@ impl fmt::Display for HashLifeError {
 }
 
 impl std::error::Error for HashLifeError {}
+
+/// Why a macrocell file could not be read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MacrocellError {
+    /// A line that is not a header, a directive, a leaf or a five-integer node.
+    Syntax { line: usize, message: String },
+    /// The tree the file describes was refused: the node cap or the level limit stopped it.
+    Engine(HashLifeError),
+}
+
+impl fmt::Display for MacrocellError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Syntax { line, message } => write!(f, "line {line}: {message}"),
+            Self::Engine(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for MacrocellError {}
+
+impl From<HashLifeError> for MacrocellError {
+    fn from(error: HashLifeError) -> Self {
+        Self::Engine(error)
+    }
+}
+
+fn syntax(line: usize, message: impl Into<String>) -> MacrocellError {
+    MacrocellError::Syntax {
+        line,
+        message: message.into(),
+    }
+}
 
 /// `result` for a node whose next generation has not been computed yet.
 ///
@@ -228,6 +265,133 @@ impl HashLife {
         Ok(hl)
     }
 
+    /// Read a Golly macrocell (M2) into a tree, without materialising a grid.
+    ///
+    /// The format is a header (`[M2] (golly 2.0)`), optional `#R` and `#G` directives, then a
+    /// child-first quadtree. A two-state leaf is an eight-row raster of `.`, `*` and `$`; a node with
+    /// children is five integers — the log2 of its side, then its NW, NE, SW and SE children. Node 0
+    /// is the all-dead square at whatever level a parent asks for, and nodes are numbered from 1 in
+    /// file order.
+    ///
+    /// This is how a large pattern reaches the page without a grid: a 2x2 metapixel array is
+    /// 6154x6154 cells, which is 38 MB as a byte grid and about a tenth of that as a macrocell. The
+    /// file's root is a starting point rather than the final layout — it is the tightest square
+    /// around the pattern, which is too small for a compressed step, and the pattern sits where the
+    /// file put it rather than centred. So the tree is read, its cells are collected, the arena is
+    /// dropped and the tree is rebuilt at the level a step needs: one extra pass over the live
+    /// cells, and the arena ends up holding one tree rather than two.
+    ///
+    /// A `#R` line naming a different rule than the one passed is an error. Drawing a B3/S23 file
+    /// under another rule would be a silent lie about what the picture is.
+    pub fn from_macrocell(text: &str, rule: Rule, cap: usize) -> Result<Self, MacrocellError> {
+        let mut hl = Self::new(rule, cap);
+        // File node 0 is "dead at any level"; it is resolved to the empty node a parent needs.
+        let mut ids: Vec<NodeId> = vec![0];
+        let mut saw_header = false;
+        let mut generation = 0u64;
+
+        for (offset, raw) in text.lines().enumerate() {
+            let line_number = offset + 1;
+            let line = raw.trim();
+            if line.is_empty() {
+                continue;
+            }
+            if line.starts_with("[M2]") {
+                saw_header = true;
+                continue;
+            }
+            if !saw_header {
+                return Err(syntax(
+                    line_number,
+                    "a macrocell file starts with a \"[M2]\" line",
+                ));
+            }
+            if let Some(rest) = line.strip_prefix("#R") {
+                let named = rest.trim();
+                let parsed = Rule::parse(named).map_err(|_| {
+                    syntax(
+                        line_number,
+                        format!("'{named}' is not a rule this engine reads"),
+                    )
+                })?;
+                if parsed.mask() != rule.mask() {
+                    return Err(syntax(
+                        line_number,
+                        format!("the file names '{named}', not the rule it was opened as"),
+                    ));
+                }
+                continue;
+            }
+            if let Some(rest) = line.strip_prefix("#G") {
+                let value = rest.trim();
+                generation = value
+                    .parse()
+                    .map_err(|_| syntax(line_number, format!("'{value}' is not a generation")))?;
+                continue;
+            }
+            if line.starts_with('#') {
+                continue;
+            }
+            if matches!(line.as_bytes()[0], b'.' | b'*' | b'$') {
+                ids.push(hl.read_leaf(line, line_number)?);
+                continue;
+            }
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() != 5 {
+                return Err(syntax(
+                    line_number,
+                    format!("'{line}' is neither a leaf nor a five-integer node"),
+                ));
+            }
+            let level: u32 = parts[0]
+                .parse()
+                .map_err(|_| syntax(line_number, format!("'{}' is not a node level", parts[0])))?;
+            if level <= LEAF_LEVEL {
+                return Err(syntax(
+                    line_number,
+                    format!("a two-state node has level {LEAF_LEVEL} or more, not {level}"),
+                ));
+            }
+            if level > MAX_LEVEL {
+                return Err(MacrocellError::Engine(HashLifeError::LevelOverflow {
+                    requested: level,
+                }));
+            }
+            let mut quads = [0; 4];
+            for (index, part) in parts[1..].iter().enumerate() {
+                let id: usize = part
+                    .parse()
+                    .map_err(|_| syntax(line_number, format!("'{part}' is not a node number")))?;
+                if id >= ids.len() {
+                    return Err(syntax(
+                        line_number,
+                        format!("node {id} is used before it is defined"),
+                    ));
+                }
+                quads[index] = if id == 0 {
+                    hl.empty(level - 1)?
+                } else {
+                    ids[id]
+                };
+            }
+            ids.push(hl.intern(level, quads)?);
+        }
+
+        if !saw_header {
+            return Err(syntax(
+                1,
+                "a macrocell file starts with a \"[M2]\" line",
+            ));
+        }
+        if ids.len() < 2 {
+            return Err(syntax(1, "the macrocell file holds no nodes"));
+        }
+        hl.root = *ids.last().expect("checked above");
+        hl.generation = generation;
+        hl.recentre()?;
+        Ok(hl)
+    }
+
     pub fn rule(&self) -> Rule {
         self.rule
     }
@@ -264,6 +428,19 @@ impl HashLife {
 
     pub fn population(&self) -> u64 {
         self.nodes[self.root as usize].population
+    }
+
+    /// Bytes the arena and the index table hold: one packed node per node, one four-byte slot per
+    /// table entry.
+    ///
+    /// The packing is a claim, so it is measured rather than asserted in prose: a unit test pins
+    /// `Node` at thirty-two bytes, and this reports what the two buffers hold so a test can pin the
+    /// cost per node. Vector capacity is deliberately not counted — the growth doubling is a
+    /// scheduling decision, not a layout one, and counting it would make the number depend on when
+    /// the last reallocation happened.
+    pub fn memory_bytes(&self) -> usize {
+        self.nodes.len() * std::mem::size_of::<Node>()
+            + self.index.slots.len() * std::mem::size_of::<NodeId>()
     }
 
     /// Advance `generations` generations, decomposed into the largest compressed steps that fit.
@@ -705,6 +882,81 @@ impl HashLife {
             self.root = self.with_cell(root, level, x, y)?;
         }
         self.generation += 1;
+        Ok(())
+    }
+
+    /// Read one macrocell leaf line into a level-3 node.
+    fn read_leaf(&mut self, line: &str, line_number: usize) -> Result<NodeId, MacrocellError> {
+        let mut root = self.empty(LEAF_LEVEL)?;
+        let mut x = 0usize;
+        let mut y = 0usize;
+        for character in line.chars() {
+            match character {
+                '$' => {
+                    y += 1;
+                    x = 0;
+                }
+                '.' | '*' => {
+                    if x >= LEAF_SIDE || y >= LEAF_SIDE {
+                        return Err(syntax(
+                            line_number,
+                            "a macrocell leaf is eight cells wide and eight rows tall",
+                        ));
+                    }
+                    if character == '*' {
+                        root = self.with_cell(root, LEAF_LEVEL, x, y)?;
+                    }
+                    x += 1;
+                }
+                other => {
+                    return Err(syntax(
+                        line_number,
+                        format!("'{other}' is not a macrocell cell"),
+                    ))
+                }
+            }
+        }
+        Ok(root)
+    }
+
+    /// Drop the arena and rebuild the root from the live cells at a level a compressed step needs.
+    fn recentre(&mut self) -> Result<(), HashLifeError> {
+        let mut cells = self.live_cells();
+        // Row-major, the order `from_cells` inserts in. Canonicalisation makes the arena a set, so
+        // any order builds the same tree — but the *intermediate* nodes are the order's garbage, and
+        // matching the grid loader's order makes the two paths agree node for node.
+        cells.sort_unstable_by_key(|&(x, y)| (y, x));
+        let (min_x, min_y) = cells
+            .iter()
+            .fold((usize::MAX, usize::MAX), |(mx, my), &(x, y)| {
+                (mx.min(x), my.min(y))
+            });
+        let (min_x, min_y) = if cells.is_empty() {
+            (0, 0)
+        } else {
+            (min_x, min_y)
+        };
+        let width = cells
+            .iter()
+            .map(|&(x, _)| x)
+            .max()
+            .map_or(0, |m| m - min_x + 1);
+        let height = cells
+            .iter()
+            .map(|&(_, y)| y)
+            .max()
+            .map_or(0, |m| m - min_y + 1);
+        let level = level_for(width.max(height).max(1))?;
+        self.nodes.truncate(2);
+        self.index.clear();
+        self.root = self.empty(level)?;
+        let size = 1usize << level;
+        let offset_x = (size - width) / 2;
+        let offset_y = (size - height) / 2;
+        for (x, y) in cells {
+            let root = self.root;
+            self.root = self.with_cell(root, level, offset_x + x - min_x, offset_y + y - min_y)?;
+        }
         Ok(())
     }
 }

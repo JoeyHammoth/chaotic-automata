@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "predev": "npm run copy:products",
+    "predev": "npm run copy:products && npm run build:fixtures",
     "build": "tsc --noEmit && vite build",
-    "prebuild": "npm run copy:products",
+    "prebuild": "npm run copy:products && npm run build:fixtures",
     "copy:products": "node scripts/copy-products.mjs",
+    "build:fixtures": "vite-node scripts/build-fixtures.ts",
     "build:wasm": "node scripts/build-wasm.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

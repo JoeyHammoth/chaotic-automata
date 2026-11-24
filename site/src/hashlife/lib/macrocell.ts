@@ -9,6 +9,7 @@
 // module's memory and the page is done. Flattening a metapixel is a few megabytes, which is the
 // price of not re-implementing the quadtree in JavaScript.
 
+import { canonicalRule, parseRule } from '../../engine/lib/rule';
 import { PatternError, type Pattern } from './rle';
 
 interface Node {
@@ -169,6 +170,21 @@ export function looksLikeMacrocell(text: string): boolean {
 }
 
 /**
+ * The rule a macrocell names, if it names one.
+ *
+ * Golly omits `#R` for the default rule, so `null` here means B3/S23 by the format's own
+ * convention. The engine's reader checks the same line, so a file drawn under a different rule is
+ * refused rather than silently misread.
+ */
+export function macrocellRule(text: string): string | null {
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.startsWith('#R')) return line.slice(2).trim();
+  }
+  return null;
+}
+
+/**
  * Write a pattern as a Golly macrocell (M2).
  *
  * There is no interning: every non-empty node is emitted once, children before parents, so the file
@@ -184,7 +200,9 @@ export function looksLikeMacrocell(text: string): boolean {
  * against the published RLE.
  */
 export function writeMacrocell(pattern: Pattern, generation = 0): string {
-  const rule = pattern.rule ?? 'B3/S23';
+  // Canonical, because a source file may spell the rule any way it likes (the published metapixel
+  // RLE says `b3/s23`) and a macrocell is read by programs that expect the canonical string.
+  const rule = canonicalRule(parseRule(pattern.rule ?? 'B3/S23'));
   let level = LEAF_LEVEL;
   while (2 ** level < Math.max(pattern.width, pattern.height)) level += 1;
   const side = 2 ** level;

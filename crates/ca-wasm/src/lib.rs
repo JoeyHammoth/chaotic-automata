@@ -126,6 +126,32 @@ pub extern "C" fn hl_load(mask: u32, width: u32, height: u32) -> u32 {
     }
 }
 
+/// Read the reserved buffer as a Golly macrocell (M2) and build the tree from it. Returns 1 on
+/// success.
+///
+/// The array exhibit is why this exists: four metapixels are 6154x6154 cells, 38 MB as a byte grid,
+/// and the module never allocates that grid at all. The reader is in `ca-core`, next to the tree it
+/// builds, so the text goes in and the tree comes out.
+#[no_mangle]
+pub extern "C" fn hl_load_macrocell(mask: u32, len: u32) -> u32 {
+    unsafe {
+        if INPUT.len() != len as usize {
+            return 0;
+        }
+        let Ok(text) = std::str::from_utf8(&INPUT) else {
+            return 0;
+        };
+        match HashLife::from_macrocell(text, Rule::from_mask(mask), HASH_CAP) {
+            Ok(hash) => {
+                HASH = Some(hash);
+                INPUT = Vec::new();
+                1
+            }
+            Err(_) => 0,
+        }
+    }
+}
+
 /// Advance `generations`, decomposed into the largest compressed steps that fit. 0 on error.
 #[no_mangle]
 pub extern "C" fn hl_step(generations: u32) -> u32 {

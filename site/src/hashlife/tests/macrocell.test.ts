@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { looksLikeMacrocell, parseMacrocell } from '../lib/macrocell';
+import { looksLikeMacrocell, macrocellRule, parseMacrocell } from '../lib/macrocell';
 import { PatternError } from '../lib/rle';
 
 // A glider: two empty rows, then three rows of the glider, then three empty rows.
@@ -38,6 +38,12 @@ describe('macrocell import', () => {
     expect(() => parseMacrocell(`[M2]\n${GLIDER_LEAF}\n3 1 0 0 0`)).toThrow(/level 4 or more/);
     expect(() => parseMacrocell(GLIDER_LEAF)).toThrow(/\[M2\]/);
     expect(() => parseMacrocell('[M2]\n4 1 2 3')).toThrow(PatternError);
+  });
+
+  it('reports the rule the file names, and nothing when it names none', () => {
+    // Golly omits `#R` for the default rule, so null is the format's way of saying B3/S23.
+    expect(macrocellRule('[M2] (golly 2.0)\n#R B36/S23\n$$***$')).toBe('B36/S23');
+    expect(macrocellRule(`[M2] (golly 2.0)\n${GLIDER_LEAF}`)).toBe(null);
   });
 
   it('recognises a macrocell file by its header', () => {
