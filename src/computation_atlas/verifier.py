@@ -46,10 +46,10 @@ CRYPTID_SOURCE = "https://wiki.bbchallenge.org/wiki/Cryptids"
 
 # A 256-step cap says nothing about a cryptid, so the exhibit also runs each one for a billion
 # transitions on the array tape and records how far it got at each decade. That is still not a
-# verdict — it is the shape of the walk, which is the thing a reader can actually see. A billion is a
-# budget, not a bound: a machine that has not halted by then is undecided at this budget, exactly as
-# it is at 256. The last decade is the interesting one, because growth that is still accelerating at
-# the end of the budget is a different claim from growth that has settled.
+# verdict — it is the shape of the walk, which is the thing a reader can actually see. A billion is
+# a budget, not a bound: a machine that has not halted by then is undecided at this budget, exactly
+# as it is at 256. The last decade is the interesting one, because growth that is still accelerating
+# at the end of the budget is a different claim from growth that has settled.
 CRYPTID_STEPS = 1_000_000_000
 CRYPTID_SAMPLES = (
     1_000,
