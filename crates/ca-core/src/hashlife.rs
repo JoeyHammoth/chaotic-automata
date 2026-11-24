@@ -26,7 +26,6 @@
 //! honest cost of not maintaining a set of neighbour pointers, and the benchmark in `docs/` records
 //! what it costs on a chaotic soup.
 
-use std::collections::HashMap;
 use std::fmt;
 
 use crate::rule::Rule;
@@ -63,20 +62,119 @@ impl fmt::Display for HashLifeError {
 
 impl std::error::Error for HashLifeError {}
 
+/// `result` for a node whose next generation has not been computed yet.
+///
+/// The arena cap keeps every real id far below this, so the sentinel cannot collide with a node.
+const NO_RESULT: NodeId = u32::MAX;
+
+/// One canonical quadtree node: thirty-two bytes, down from forty.
+///
+/// The level is a `u8` (the deepest tree is [`MAX_LEVEL`] = 30) and the memoised result is a bare id
+/// with [`NO_RESULT`] standing for "not computed". `Option<NodeId>` costs eight bytes for four bytes
+/// of payload, which on a million nodes is four megabytes spent on a discriminant.
 #[derive(Clone, Copy, Debug)]
 struct Node {
-    level: u32,
     /// North-west, north-east, south-west, south-east.
     quads: [NodeId; 4],
     population: u64,
-    result: Option<NodeId>,
+    /// The centre half after `2^(level - 2)` generations, or [`NO_RESULT`].
+    result: NodeId,
+    level: u8,
+}
+
+/// An open-addressed index from a node's four children to its id.
+///
+/// The key is not stored. A slot holds one id and a probe compares the candidate node's `quads` in
+/// the arena, which is four bytes per slot instead of a `HashMap`'s twenty-four. On the metapixel
+/// array the index is about 8 MB rather than 50, and it no longer grows faster than the nodes it
+/// indexes. Four children identify a node completely — their levels fix its level — so the quads
+/// alone are a sound key.
+struct Index {
+    /// `id + 1`, so that zero means empty. Node 0 is the dead leaf and is never interned.
+    slots: Vec<NodeId>,
+    used: usize,
+}
+
+impl Index {
+    fn new() -> Self {
+        Self {
+            slots: Vec::new(),
+            used: 0,
+        }
+    }
+
+    /// Splitmix64 over the four ids: one multiply per word, no dependency, and well spread.
+    fn hash(quads: [NodeId; 4]) -> u64 {
+        let mut hash = 0x9E37_79B9_7F4A_7C15u64;
+        for quad in quads {
+            hash ^= u64::from(quad);
+            hash = hash.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+            hash ^= hash >> 29;
+        }
+        hash
+    }
+
+    fn clear(&mut self) {
+        self.slots.fill(0);
+        self.used = 0;
+    }
+
+    fn get(&self, nodes: &[Node], quads: [NodeId; 4]) -> Option<NodeId> {
+        if self.slots.is_empty() {
+            return None;
+        }
+        let slot = self.slots[self.probe(nodes, quads)];
+        (slot != 0).then(|| slot - 1)
+    }
+
+    fn insert(&mut self, nodes: &[Node], id: NodeId) {
+        // Stay under seven eighths full, the same headroom a `HashMap` keeps.
+        if self.slots.is_empty() || (self.used + 1) * 8 >= self.slots.len() * 7 {
+            self.grow(nodes);
+        }
+        let slot = self.probe(nodes, nodes[id as usize].quads);
+        debug_assert_eq!(self.slots[slot], 0, "a node was interned twice");
+        self.slots[slot] = id + 1;
+        self.used += 1;
+    }
+
+    /// The slot holding `quads`, or the empty slot where it belongs.
+    fn probe(&self, nodes: &[Node], quads: [NodeId; 4]) -> usize {
+        let mask = self.slots.len() - 1;
+        let mut index = (Self::hash(quads) as usize) & mask;
+        loop {
+            let slot = self.slots[index];
+            if slot == 0 || nodes[(slot - 1) as usize].quads == quads {
+                return index;
+            }
+            index = (index + 1) & mask;
+        }
+    }
+
+    fn grow(&mut self, nodes: &[Node]) {
+        let capacity = if self.slots.is_empty() {
+            1 << 10
+        } else {
+            self.slots.len() * 2
+        };
+        let old = std::mem::take(&mut self.slots);
+        self.slots = vec![0; capacity];
+        self.used = 0;
+        for slot in old {
+            if slot != 0 {
+                let index = self.probe(nodes, nodes[(slot - 1) as usize].quads);
+                self.slots[index] = slot;
+                self.used += 1;
+            }
+        }
+    }
 }
 
 /// A Life-like universe on the infinite plane, compressed by canonicalisation and memoisation.
 pub struct HashLife {
     rule: Rule,
     nodes: Vec<Node>,
-    index: HashMap<(u32, NodeId, NodeId, NodeId, NodeId), NodeId>,
+    index: Index,
     root: NodeId,
     cap: usize,
     generation: u64,
@@ -90,7 +188,7 @@ impl HashLife {
         let mut hl = Self {
             rule,
             nodes: Vec::new(),
-            index: HashMap::new(),
+            index: Index::new(),
             root: 0,
             cap,
             generation: 0,
@@ -147,7 +245,7 @@ impl HashLife {
 
     /// The level of the current root: the root covers `2^level` cells on an edge.
     pub fn level(&self) -> u32 {
-        self.nodes[self.root as usize].level
+        u32::from(self.nodes[self.root as usize].level)
     }
 
     /// The population of one node, by id. Read-only: the tree view and the level-of-detail view
@@ -228,12 +326,12 @@ impl HashLife {
     /// `(x, y)` in the root's frame. `None` when the root is shallower than `level`.
     pub fn subtree_at(&self, level: u32, mut x: usize, mut y: usize) -> Option<NodeId> {
         let root = self.nodes[self.root as usize];
-        if level > root.level {
+        if level > u32::from(root.level) {
             return None;
         }
         let mut id = self.root;
         let mut node = root;
-        while node.level > level {
+        while u32::from(node.level) > level {
             let half = 1usize << (node.level - 1);
             let idx = quadrant(x, y, half);
             id = node.quads[idx];
@@ -247,7 +345,7 @@ impl HashLife {
     /// Run a reachability collection, dropping every node the root cannot reach. This is the memory
     /// bound: memoised results and superseded roots are released here.
     pub fn collect_garbage(&mut self) -> Result<(), HashLifeError> {
-        let level = self.nodes[self.root as usize].level;
+        let level = u32::from(self.nodes[self.root as usize].level);
         let cells = self.live_cells();
         let (min_x, min_y) = cells
             .iter()
@@ -274,17 +372,17 @@ impl HashLife {
     fn push(&mut self, level: u32, quads: [NodeId; 4], population: u64) -> NodeId {
         let id = self.nodes.len() as NodeId;
         self.nodes.push(Node {
-            level,
             quads,
             population,
-            result: None,
+            result: NO_RESULT,
+            level: level as u8,
         });
         id
     }
 
     fn intern(&mut self, level: u32, quads: [NodeId; 4]) -> Result<NodeId, HashLifeError> {
-        let key = (level, quads[0], quads[1], quads[2], quads[3]);
-        if let Some(&id) = self.index.get(&key) {
+        if let Some(id) = self.index.get(&self.nodes, quads) {
+            debug_assert_eq!(self.nodes[id as usize].level as u32, level);
             return Ok(id);
         }
         if self.nodes.len() >= self.cap {
@@ -299,7 +397,7 @@ impl HashLife {
             .map(|&q| self.nodes[q as usize].population)
             .sum::<u64>();
         let id = self.push(level, quads, population);
-        self.index.insert(key, id);
+        self.index.insert(&self.nodes, id);
         Ok(id)
     }
 
@@ -313,10 +411,11 @@ impl HashLife {
 
     /// The centred half of `id`, advanced `2^(level-2)` generations. Memoised on the node.
     fn next_generation(&mut self, id: NodeId) -> Result<NodeId, HashLifeError> {
-        if let Some(result) = self.nodes[id as usize].result {
-            return Ok(result);
+        let cached = self.nodes[id as usize].result;
+        if cached != NO_RESULT {
+            return Ok(cached);
         }
-        let level = self.nodes[id as usize].level;
+        let level = u32::from(self.nodes[id as usize].level);
         let result = if level == 2 {
             self.base_case(id)?
         } else {
@@ -341,12 +440,12 @@ impl HashLife {
             let d = self.next_generation(d)?;
             self.intern(level - 1, [a, b, c, d])?
         };
-        self.nodes[id as usize].result = Some(result);
+        self.nodes[id as usize].result = result;
         Ok(result)
     }
 
     fn horizontal_forward(&mut self, west: NodeId, east: NodeId) -> Result<NodeId, HashLifeError> {
-        let level = self.nodes[west as usize].level;
+        let level = u32::from(self.nodes[west as usize].level);
         let w = self.nodes[west as usize].quads;
         let e = self.nodes[east as usize].quads;
         let joined = self.intern(level, [w[1], e[0], w[3], e[2]])?;
@@ -354,7 +453,7 @@ impl HashLife {
     }
 
     fn vertical_forward(&mut self, north: NodeId, south: NodeId) -> Result<NodeId, HashLifeError> {
-        let level = self.nodes[north as usize].level;
+        let level = u32::from(self.nodes[north as usize].level);
         let n = self.nodes[north as usize].quads;
         let s = self.nodes[south as usize].quads;
         let joined = self.intern(level, [n[2], n[3], s[0], s[1]])?;
@@ -363,7 +462,7 @@ impl HashLife {
 
     fn centred_forward(&mut self, quads: [NodeId; 4]) -> Result<NodeId, HashLifeError> {
         let [nw, ne, sw, se] = quads;
-        let level = self.nodes[nw as usize].level;
+        let level = u32::from(self.nodes[nw as usize].level);
         let nw = self.nodes[nw as usize].quads;
         let ne = self.nodes[ne as usize].quads;
         let sw = self.nodes[sw as usize].quads;
@@ -488,7 +587,7 @@ impl HashLife {
         if level > MAX_LEVEL {
             return Err(HashLifeError::LevelOverflow { requested: level });
         }
-        let current = self.nodes[self.root as usize].level;
+        let current = u32::from(self.nodes[self.root as usize].level);
         if current == level && self.centred() {
             return Ok(());
         }
@@ -643,6 +742,28 @@ mod tests {
         assert_eq!(hl.population(), 0);
         assert_eq!(hl.nodes[0].population, 0);
         assert_eq!(hl.nodes[1].population, 1);
+    }
+
+    #[test]
+    fn a_node_is_thirty_two_bytes() {
+        // The packing is the memory claim: a `u8` level and a sentinel result id, not an `Option`.
+        assert_eq!(std::mem::size_of::<Node>(), 32);
+    }
+
+    #[test]
+    fn the_index_finds_every_interned_node() {
+        // Dropping the level from the key is only sound if the four children fix it. If two nodes
+        // ever shared a quads array with different levels, one would be missing from the index.
+        let cells: Vec<u8> = vec![0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let mut hl = HashLife::from_cells(Rule::life(), 4, 4, &cells, 256).expect("fits");
+        hl.step(16).expect("sixteen generations");
+        for (id, node) in hl.nodes.iter().enumerate().skip(2) {
+            assert_eq!(
+                hl.index.get(&hl.nodes, node.quads),
+                Some(id as NodeId),
+                "node {id} is not reachable through the index"
+            );
+        }
     }
 
     #[test]

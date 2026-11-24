@@ -5,11 +5,13 @@ import {
   certificateSummary,
   checkSummary,
   cryptidSummary,
+  cryptidTraceChart,
   cryptidTraceLine,
   formatSteps,
   loadVerifier,
   residue,
   verdictBadge,
+  type CryptidTrace,
   type Labelled,
   type VerifierProduct,
 } from './lib/verifier';
@@ -89,6 +91,38 @@ function renderLabelled(product: VerifierProduct): void {
   }
 }
 
+const SVG = 'http://www.w3.org/2000/svg';
+
+/** The span over a million steps, drawn small. The sentence beside it carries the same numbers. */
+function traceChart(trace: CryptidTrace): SVGSVGElement {
+  const chart = cryptidTraceChart(trace);
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 132 44');
+  svg.setAttribute('width', '132');
+  svg.setAttribute('height', '44');
+  svg.setAttribute('class', 'trace');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', chart.label);
+  const line = document.createElementNS(SVG, 'polyline');
+  line.setAttribute(
+    'points',
+    chart.points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '),
+  );
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', 'currentColor');
+  line.setAttribute('stroke-width', '1.5');
+  svg.append(line);
+  for (const point of chart.points) {
+    const dot = document.createElementNS(SVG, 'circle');
+    dot.setAttribute('cx', point.x.toFixed(1));
+    dot.setAttribute('cy', point.y.toFixed(1));
+    dot.setAttribute('r', '1.8');
+    dot.setAttribute('fill', 'currentColor');
+    svg.append(dot);
+  }
+  return svg;
+}
+
 function renderCryptids(product: VerifierProduct): void {
   const body = element<HTMLTableSectionElement>('cryptid-table');
   body.replaceChildren();
@@ -102,7 +136,12 @@ function renderCryptids(product: VerifierProduct): void {
     machine.className = 'certificate';
     machine.textContent = cryptid.string;
     const mine = document.createElement('td');
-    mine.textContent = `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.`;
+    mine.append(
+      traceChart(cryptid.trace),
+      document.createTextNode(
+        `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.`,
+      ),
+    );
     row.append(
       name,
       cell(cryptid.domain),
