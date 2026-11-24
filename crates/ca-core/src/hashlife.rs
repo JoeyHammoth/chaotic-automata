@@ -145,6 +145,17 @@ impl HashLife {
         self.nodes.len()
     }
 
+    /// The level of the current root: the root covers `2^level` cells on an edge.
+    pub fn level(&self) -> u32 {
+        self.nodes[self.root as usize].level
+    }
+
+    /// The population of one node, by id. Read-only: the tree view and the level-of-detail view
+    /// need the count of a node they hold, not of the whole pattern.
+    pub fn node_population(&self, id: NodeId) -> u64 {
+        self.nodes[id as usize].population
+    }
+
     pub fn cap(&self) -> usize {
         self.cap
     }

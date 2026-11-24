@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Computation Atlas — HashLife</title>
+    <meta
+      name="description"
+      content="A compressed quadtree you can zoom into: level-of-detail rendering, a variable time step, a sharing ratio and a memory gauge, with RLE and macrocell import."
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>HashLife</h1>
+        <p class="lede">
+          A level-<code>k</code> node covers <code>2^k × 2^k</code> cells and caches the centre
+          square advanced <code>2^(k-2)</code> generations, so the pattern is computed once per
+          distinct subtree. Zoom out and a pixel becomes a node, drawn as its population; zoom in
+          and it becomes a cell again. The tree view reports nodes against nominal cells, which is
+          what makes the compression legible.
+        </p>
+      </header>
+
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <section class="panel" aria-labelledby="canvas-heading">
+        <h2 id="canvas-heading">The plane</h2>
+        <div class="controls">
+          <label for="pattern">Pattern</label>
+          <select id="pattern">
+            <option value="gun">Gosper glider gun</option>
+            <option value="block">Block</option>
+          </select>
+          <label for="step-size">Step</label>
+          <select id="step-size"></select>
+          <button id="advance" type="button">Advance</button>
+          <span class="spacer"></span>
+          <button id="zoom-in" type="button">Zoom in</button>
+          <button id="zoom-out" type="button">Zoom out</button>
+          <button id="fit" type="button">Fit</button>
+        </div>
+        <figure class="pane">
+          <canvas
+            id="plane"
+            width="640"
+            height="640"
+            role="img"
+            aria-label="The pattern, rendered at level of detail: at this zoom each pixel is one node drawn as its population"
+          ></canvas>
+          <figcaption id="plane-caption">Loading the engine module…</figcaption>
+        </figure>
+        <p id="readout" class="readout" aria-live="polite"></p>
+        <p id="step-note" class="status"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="tree-heading">
+        <h2 id="tree-heading">The tree, and its budget</h2>
+        <table class="data">
+          <caption>
+            What the compressed tree costs against the cells it stands for.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">measure</th>
+              <th scope="col">value</th>
+            </tr>
+          </thead>
+          <tbody id="tree-table"></tbody>
+        </table>
+        <div
+          id="memory-gauge"
+          class="gauge"
+          role="progressbar"
+          aria-labelledby="gauge-label"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <span id="gauge-fill" class="gauge-fill"></span>
+        </div>
+        <p id="gauge-label" class="status"></p>
+        <p id="cap-note" class="status"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="import-heading">
+        <h2 id="import-heading">Import</h2>
+        <p class="lede">
+          Paste a pattern in RLE or macrocell form. The importer parses it in the page, writes the
+          cells straight into the module's memory, and reports what it read — including the
+          population, so a truncated file is visible rather than silent.
+        </p>
+        <div class="controls">
+          <label for="paste">Pattern text</label>
+          <textarea id="paste" rows="6" spellcheck="false"></textarea>
+          <button id="import" type="button">Import</button>
+        </div>
+        <p id="import-note" class="status" aria-live="polite"></p>
+      </section>
+
+      <p class="status" id="status" aria-live="polite">loading…</p>
+      <p class="status">
+        <a href="/">Back to the atlas</a> · <a href="/inspector.html">Inspector</a> ·
+        <a href="/stress.html">Stress Lab</a> · <a href="/verifier.html">Verifier</a>
+      </p>
+    </main>
+
+    <script type="module" src="/src/hashlife/main.ts"></script>
+  </body>
+</html>

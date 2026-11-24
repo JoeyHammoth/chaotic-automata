@@ -1,0 +1,281 @@
+// The HashLife page. The tree lives in the wasm module; this file decides what window to ask for,
+// draws the answer at the level of detail the zoom implies, and reports the tree's own numbers.
+//
+// Two things are deliberate. First, a node smaller than a pixel draws as its density, so zooming
+// out shows structure instead of noise. Second, the sharing ratio and the memory gauge are the
+// engine's counts, not estimates: a page that guessed them would be lying about the compression.
+
+import { looksLikeMacrocell, parseMacrocell } from './lib/macrocell';
+import { PatternError, parseRle, population, type Pattern } from './lib/rle';
+import {
+  cellsPerPixel,
+  clampView,
+  formatSharing,
+  formatStep,
+  levelForScale,
+  memory,
+  stepOptions,
+  type View,
+} from './lib/view';
+import { createHashLife, type HashLife } from './lib/wasm';
+
+const SIZE = 640;
+const GUN = `x = 36, y = 9, rule = B3/S23
+24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o!`;
+const BLOCK = 'x = 2, y = 2\n2o$2o!';
+const LIBRARY: Record<string, string> = { gun: GUN, block: BLOCK };
+
+let hash: HashLife | null = null;
+let view: View = { x: 0, y: 0, scale: 2 };
+let step = 1;
+let patternName = 'gun';
+
+function element<T extends HTMLElement>(id: string): T {
+  const found = document.getElementById(id);
+  if (found === null) throw new Error(`the page is missing #${id}`);
+  return found as T;
+}
+
+function fail(message: string): void {
+  const banner = element('error');
+  banner.textContent = message;
+  banner.hidden = false;
+}
+
+function status(message: string): void {
+  element('status').textContent = message;
+}
+
+function paint(): void {
+  if (hash === null) return;
+  const canvas = element<HTMLCanvasElement>('plane');
+  const context = canvas.getContext('2d');
+  if (context === null) {
+    fail('this browser has no 2d canvas context, so the plane cannot be drawn');
+    return;
+  }
+  const level = levelForScale(view.scale, hash.level());
+  const pixels = hash.view(level, Math.round(view.x), Math.round(view.y), SIZE);
+  const image = context.createImageData(SIZE, SIZE);
+  const area = Math.pow(4, level);
+  for (let index = 0; index < SIZE * SIZE; index++) {
+    const value = pixels[index] ?? 0;
+    const offset = index * 4;
+    // A node draws as its density: at level 0 that is the cell itself, above it the fraction of
+    // the square that is alive.
+    const density = value === 0 ? 0 : Math.min(1, value / area);
+    const alive = density > 0 ? 0.25 + 0.75 * density : 0;
+    image.data[offset] = Math.round(8 + (123 - 8) * alive);
+    image.data[offset + 1] = Math.round(11 + (209 - 11) * alive);
+    image.data[offset + 2] = Math.round(15 + (192 - 15) * alive);
+    image.data[offset + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+
+  element('plane-caption').textContent =
+    level === 0
+      ? `One pixel per cell, ${cellsPerPixel(view.scale)} cell(s) per pixel.`
+      : `One pixel per level-${level} node: each is drawn as the population density of a ${Math.pow(2, level)}×${Math.pow(2, level)} square.`;
+}
+
+function renderReadout(): void {
+  if (hash === null) return;
+  const bounds = hash.bounds();
+  element('readout').textContent =
+    `generation ${hash.generation().toLocaleString('en-US')} · ` +
+    `population ${hash.population().toLocaleString('en-US')} · ` +
+    `root level ${hash.level()} · ` +
+    `live box ${bounds.maxX - bounds.minX + 1}×${bounds.maxY - bounds.minY + 1}`;
+  element('step-note').textContent =
+    `Each advance asks for ${formatStep(step)}; the engine decomposes that into the largest ` +
+    'compressed steps the tree can hold, and falls back to a one-generation sweep when it cannot.';
+}
+
+function renderTree(): void {
+  if (hash === null) return;
+  const body = element<HTMLTableSectionElement>('tree-table');
+  body.replaceChildren();
+  const rows: Array<[string, string]> = [
+    ['nodes', hash.nodes().toLocaleString('en-US')],
+    ['nominal cells', Math.pow(4, hash.level()).toLocaleString('en-US')],
+    ['sharing', formatSharing(hash.nodes(), hash.level())],
+    ['node cap', hash.cap().toLocaleString('en-US')],
+    ['cap hits', hash.capHits().toLocaleString('en-US')],
+    ['generation', hash.generation().toLocaleString('en-US')],
+  ];
+  for (const [label, value] of rows) {
+    const row = document.createElement('tr');
+    const name = document.createElement('th');
+    name.scope = 'row';
+    name.textContent = label;
+    const cell = document.createElement('td');
+    cell.textContent = value;
+    row.append(name, cell);
+    body.append(row);
+  }
+  const gauge = memory(hash.nodes(), hash.cap());
+  element('memory-gauge').setAttribute('aria-valuenow', String(Math.round(gauge.fraction * 100)));
+  element('gauge-fill').style.width = `${Math.round(gauge.fraction * 100)}%`;
+  element('gauge-label').textContent = `Memory: ${gauge.text}`;
+  element('cap-note').textContent =
+    hash.capHits() > 0
+      ? 'The cap has been hit: the tree is refusing to grow rather than exceeding its budget.'
+      : 'The cap has not been hit.';
+}
+
+function syncUrl(): void {
+  if (hash === null) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('pattern', patternName);
+  url.searchParams.set('gen', String(hash.generation()));
+  url.searchParams.set('scale', String(Math.round(view.scale * 1000) / 1000));
+  url.searchParams.set('x', String(Math.round(view.x)));
+  url.searchParams.set('y', String(Math.round(view.y)));
+  window.history.replaceState(null, '', url);
+}
+
+function render(): void {
+  paint();
+  renderReadout();
+  renderTree();
+  syncUrl();
+}
+
+function fit(): void {
+  if (hash === null) return;
+  const bounds = hash.bounds();
+  const span = Math.max(bounds.maxX - bounds.minX + 1, bounds.maxY - bounds.minY + 1, 1);
+  view = clampView(
+    {
+      scale: Math.max(0.01, SIZE / (span * 1.4)),
+      x: Math.max(0, bounds.minX - span * 0.2),
+      y: Math.max(0, bounds.minY - span * 0.2),
+    },
+    Math.pow(2, hash.level()),
+  );
+}
+
+async function load(pattern: Pattern, name: string): Promise<void> {
+  const loaded = await createHashLife(pattern);
+  if (loaded === null) {
+    fail(
+      'the HashLife module did not load. Run `npm run build:wasm` so the page has a module with ' +
+        'the zoom exports.',
+    );
+    status('nothing to draw: the engine module is missing');
+    return;
+  }
+  hash = loaded;
+  patternName = name;
+  fit();
+  render();
+  element('error').hidden = true;
+  status(
+    `Loaded ${pattern.width}×${pattern.height}, ${population(pattern).toLocaleString('en-US')} ` +
+      `live cells, ${pattern.rule ?? 'the default rule'}.`,
+  );
+}
+
+function wire(): void {
+  const stepSelect = element<HTMLSelectElement>('step-size');
+  for (const option of stepOptions()) {
+    const node = document.createElement('option');
+    node.value = String(option);
+    node.textContent = formatStep(option);
+    stepSelect.append(node);
+  }
+  stepSelect.value = String(step);
+  stepSelect.addEventListener('change', () => {
+    step = Number(stepSelect.value);
+    renderReadout();
+  });
+
+  element('advance').addEventListener('click', () => {
+    if (hash === null) return;
+    if (!hash.step(step)) {
+      fail('the engine refused that step: the node cap or the level limit stopped it');
+    }
+    render();
+  });
+
+  element('zoom-in').addEventListener('click', () => {
+    view = { ...view, scale: view.scale * 2 };
+    if (hash !== null) view = clampView(view, Math.pow(2, hash.level()));
+    render();
+  });
+
+  element('zoom-out').addEventListener('click', () => {
+    view = { ...view, scale: view.scale / 2 };
+    if (hash !== null) view = clampView(view, Math.pow(2, hash.level()));
+    render();
+  });
+
+  element('fit').addEventListener('click', () => {
+    fit();
+    render();
+  });
+
+  element<HTMLSelectElement>('pattern').addEventListener('change', (event) => {
+    const target = event.target as HTMLSelectElement;
+    const text = LIBRARY[target.value];
+    if (text === undefined) return;
+    void load(parseRle(text), target.value);
+  });
+
+  element('import').addEventListener('click', () => {
+    const text = element<HTMLTextAreaElement>('paste').value;
+    try {
+      const pattern = looksLikeMacrocell(text) ? parseMacrocell(text) : parseRle(text);
+      element('import-note').textContent =
+        `Read ${pattern.width}×${pattern.height}, ${population(pattern).toLocaleString('en-US')} ` +
+        `live cells, from ${pattern.format}.`;
+      void load(pattern, 'pasted');
+    } catch (error) {
+      const message = error instanceof PatternError ? error.message : String(error);
+      element('import-note').textContent = `Could not read that pattern: ${message}`;
+    }
+  });
+
+  element<HTMLCanvasElement>('plane').addEventListener(
+    'wheel',
+    (event: WheelEvent) => {
+      if (hash === null) return;
+      event.preventDefault();
+      const factor = event.deltaY < 0 ? 2 : 0.5;
+      view = clampView(
+        { ...view, scale: view.scale * factor },
+        Math.pow(2, hash.level()),
+      );
+      render();
+    },
+    { passive: false },
+  );
+}
+
+function start(): void {
+  wire();
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get('pattern') ?? 'gun';
+  const text = LIBRARY[requested] ?? GUN;
+  patternName = LIBRARY[requested] === undefined ? 'gun' : requested;
+  const pattern = parseRle(text);
+  void load(pattern, patternName).then(() => {
+    if (hash === null) return;
+    // `Number(null)` is 0, which would look finite and clamp the view to the coarsest level, so a
+    // missing parameter is checked for by name rather than by value.
+    const scale = Number(params.get('scale'));
+    const x = Number(params.get('x'));
+    const y = Number(params.get('y'));
+    const placed = params.has('scale') && params.has('x') && params.has('y');
+    if (placed && Number.isFinite(scale) && scale > 0 && Number.isFinite(x) && Number.isFinite(y)) {
+      view = clampView({ scale, x, y }, Math.pow(2, hash.level()));
+    }
+    const gen = Number(params.get('gen'));
+    if (Number.isInteger(gen) && gen > 0) {
+      hash.step(gen);
+    }
+    render();
+  });
+}
+
+start();
