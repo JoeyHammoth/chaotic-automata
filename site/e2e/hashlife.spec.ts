@@ -54,7 +54,7 @@ test('a breeder and a metapixel array load from their published pattern files', 
   await expect(status).toContainText("Riley's_breeder");
 
   // The load happens in a worker, so the page's own thread keeps answering while the tree is
-  // built: a round trip started during the load does not wait six seconds for it.
+  // built: a round trip started during the load does not wait for it to finish.
   const started = Date.now();
   await pattern.selectOption('metapixelArray');
   await page.evaluate(() => performance.now());
@@ -70,6 +70,22 @@ test('a breeder and a metapixel array load from their published pattern files', 
   // Zoomed out, four metapixels are nodes rather than cells.
   for (let i = 0; i < 8; i++) await page.getByRole('button', { name: 'Zoom out' }).click();
   await expect(page.locator('#plane-caption')).toContainText('population density');
+});
+
+test('a browser that cannot start the worker still draws the array on its own thread', async ({
+  page,
+}) => {
+  // Refusing the worker's script is what an old browser does with a module worker: the script never
+  // runs, the page hears an error, and the engine has to move onto the page's own thread.
+  await page.route('**/*worker*', (route) => route.abort());
+  await page.goto('/hashlife.html');
+  const status = page.locator('#status');
+  await expect(status).toContainText("runs on the page's own thread", { timeout: 20_000 });
+
+  await page.locator('#pattern').selectOption('metapixelArray');
+  await expect(status).toContainText('6154×6154', { timeout: 40_000 });
+  await expect(status).toContainText('258,764 live cells from a macrocell');
+  await expect(page.locator('#tree-table')).toContainText('987,560');
 });
 
 test('the URL carries the pattern and the generation', async ({ page }) => {

@@ -1,11 +1,12 @@
 // The page's handle on the HashLife worker.
 //
-// The module builds the 2x2 metapixel array's tree in about six seconds, and six seconds of a
-// frozen page reads as a broken page. So the tree lives in a worker and every question here is a
-// promise: numbers when the readout is asked for, and the 640x640 density window when a paint
-// needs it. Nothing else crosses the boundary — the tree never leaves the worker's memory.
+// The module builds the 2x2 metapixel array's tree in seconds, and that long with a frozen page
+// reads as a broken page. So the tree lives in a worker and every question here is a promise:
+// numbers when the readout is asked for, and the 640x640 density window when a paint needs it.
+// Nothing else crosses the boundary — the tree never leaves the worker's memory.
 
 import type { Pattern } from './rle';
+import type { HashLife } from './wasm';
 
 export interface Readout {
   generation: number;
@@ -52,21 +53,58 @@ export interface WorkerReply {
 export interface LoadedRemote {
   life: RemoteHashLife;
   readout: Readout;
+  /** True when the engine is off the page's thread; false when the load blocks the page. */
+  offThread: boolean;
+}
+
+/** The engine's own numbers for a tree, in the shape the page reads. */
+export function readoutOf(life: HashLife): Readout {
+  return {
+    generation: life.generation(),
+    population: life.population(),
+    nodes: life.nodes(),
+    cap: life.cap(),
+    capHits: life.capHits(),
+    level: life.level(),
+    bounds: life.bounds(),
+  };
 }
 
 /**
- * Start the worker and load a pattern or a macrocell into it. Resolves with the tree's numbers as
- * well as the handle, because the page needs them to fit the view and does not want a second round
- * trip for what the load already computed.
+ * The worker could not be started or could not load its module. That is a reason to try the other
+ * path, not a reason to fail: an old browser can still run the engine, just not off this thread.
+ */
+class WorkerUnavailable extends Error {}
+
+/**
+ * Load a pattern or a macrocell, off the page's thread when the browser can start a module worker
+ * and on it when it cannot. Resolves with the tree's numbers as well as the handle, because the page
+ * needs them to fit the view and does not want a second round trip for what the load already
+ * computed.
  */
 export async function createRemoteHashLife(
+  source: { pattern: Pattern } | { text: string },
+): Promise<LoadedRemote> {
+  try {
+    return await startWorkerHashLife(source);
+  } catch (error) {
+    if (!(error instanceof WorkerUnavailable)) throw error;
+    // Imported only here, so a browser with a worker never downloads this chunk: the page's own
+    // thread is the fallback, and the freeze it brings is the price of having no worker.
+    const { createLocalHashLife } = await import('./local');
+    return createLocalHashLife(source);
+  }
+}
+
+/** The preferred path: the whole tree in a worker, and every question about it a message. */
+async function startWorkerHashLife(
   source: { pattern: Pattern } | { text: string },
 ): Promise<LoadedRemote> {
   let worker: Worker;
   try {
     worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   } catch (error) {
-    throw new Error(
+    throw new WorkerUnavailable(
       `this browser could not start the HashLife worker: ${
         error instanceof Error ? error.message : String(error)
       }`,
@@ -79,8 +117,8 @@ export async function createRemoteHashLife(
   >();
   let next = 1;
 
-  const failAll = (message: string): void => {
-    for (const waiter of pending.values()) waiter.reject(new Error(message));
+  const failAll = (error: Error): void => {
+    for (const waiter of pending.values()) waiter.reject(error);
     pending.clear();
   };
 
@@ -92,7 +130,11 @@ export async function createRemoteHashLife(
     if (reply.ok) waiter.resolve(reply);
     else waiter.reject(new Error(reply.error ?? 'the HashLife worker refused that'));
   });
-  worker.addEventListener('error', () => failAll('the HashLife worker crashed'));
+  // A browser that cannot load a module worker fails right here, before any reply: the script
+  // never runs, so the error event is the one signal that the other path is needed.
+  worker.addEventListener('error', () =>
+    failAll(new WorkerUnavailable('the HashLife worker crashed')),
+  );
 
   const ask = (body: RequestBody): Promise<WorkerReply> =>
     new Promise((resolve, reject) => {
@@ -116,7 +158,7 @@ export async function createRemoteHashLife(
       return reply.pixels ?? new Uint8Array(0);
     },
     close() {
-      failAll('the HashLife worker was closed');
+      failAll(new Error('the HashLife worker was closed'));
       worker.terminate();
     },
   };
@@ -135,5 +177,5 @@ export async function createRemoteHashLife(
     worker.terminate();
     throw new Error('the worker loaded a tree but reported no readout');
   }
-  return { life, readout: reply.readout };
+  return { life, readout: reply.readout, offThread: true };
 }
