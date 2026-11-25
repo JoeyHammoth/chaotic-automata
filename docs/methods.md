@@ -344,9 +344,11 @@ zoomed out. The module's node cap is 4,194,304; the 2×2 metapixel array uses 98
 a macrocell it costs about 69 MB of module memory, against the 102 MB measured when the same tree
 was loaded from a cell grid — the grid alone is 38 MB of bytes the tree does not need. The gauge
 shows the fraction used, so the heaviest exhibit states its cost instead of hiding it. The module
-runs in a worker, so the array's six-second load blocks that thread rather than the page: the
-readout, each step and each window are messages, and the tree never leaves the worker's memory. The
-reader's own cost against the grid loader is measured in `docs/performance.md`.
+runs in a worker, so the array's load blocks that thread rather than the page: the
+readout, each step and each window are messages, and the tree never leaves the worker's memory. A
+browser that cannot start a module worker falls back to the module on the page's own thread — loaded
+lazily, so nothing pays for it otherwise — and the status line says so, because the freeze then does
+reach the page. The reader's own cost against the grid loader is measured in `docs/performance.md`.
 
 Spacing the four copies one 4096-square apart is what halves that. Edge to edge, copies of a
 2058-cell unit cell sit at different phases of the quadtree — 2058 is not a power of two — so no

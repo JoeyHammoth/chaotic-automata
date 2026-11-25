@@ -5,11 +5,16 @@
 // Three things are deliberate. First, a node smaller than a pixel draws as its density, so zooming
 // out shows structure instead of noise. Second, the sharing ratio and the memory gauge are the
 // engine's counts, not estimates: a page that guessed them would be lying about the compression.
-// Third, the module runs off the main thread — the metapixel array takes about six seconds to read,
-// and a page frozen for six seconds reads as a broken page.
+// Third, the module runs off the main thread — the metapixel array takes seconds to read, and a page
+// frozen for that long reads as a broken page.
 
 import { looksLikeMacrocell, parseMacrocell } from './lib/macrocell';
-import { createRemoteHashLife, type Readout, type RemoteHashLife } from './lib/remote';
+import {
+  createRemoteHashLife,
+  type LoadedRemote,
+  type Readout,
+  type RemoteHashLife,
+} from './lib/remote';
 import { PatternError, parseRle, population, spread, type Pattern } from './lib/rle';
 import {
   cellsPerPixel,
@@ -84,6 +89,14 @@ function fail(message: string): void {
 
 function status(message: string): void {
   element('status').textContent = message;
+}
+
+/** Say so when the engine is on this thread: the load then blocks the page instead of a worker. */
+function noteThread(offThread: boolean): void {
+  if (!offThread) {
+    element('status').textContent +=
+      " This browser cannot start a worker, so the engine runs on the page's own thread.";
+  }
 }
 
 async function paint(life: RemoteHashLife, shown: Readout): Promise<void> {
@@ -200,6 +213,10 @@ async function adopt(
   summary: string,
   shown: Readout,
 ): Promise<void> {
+  // The tree being replaced lives in a worker of its own, and that worker's wasm memory is the
+  // heaviest thing on the page: leaving it running would keep a 38 MB arena alive for every pattern
+  // the page has shown. The new tree is already built by the time this runs, so nothing is lost.
+  if (hash !== null && hash !== life) hash.close();
   hash = life;
   patternName = name;
   rootLevel = shown.level;
@@ -211,7 +228,7 @@ async function adopt(
 }
 
 async function load(pattern: Pattern, name: string): Promise<void> {
-  let loaded: { life: RemoteHashLife; readout: Readout };
+  let loaded: LoadedRemote;
   try {
     loaded = await createRemoteHashLife({ pattern });
   } catch (error) {
@@ -226,6 +243,7 @@ async function load(pattern: Pattern, name: string): Promise<void> {
       `live cells, ${pattern.rule ?? 'the default rule'}.`,
     loaded.readout,
   );
+  noteThread(loaded.offThread);
 }
 
 /**
@@ -233,7 +251,7 @@ async function load(pattern: Pattern, name: string): Promise<void> {
  * array is 38 MB as a byte grid and the module never allocates it.
  */
 async function loadMacrocell(text: string, name: string): Promise<void> {
-  let loaded: { life: RemoteHashLife; readout: Readout };
+  let loaded: LoadedRemote;
   try {
     loaded = await createRemoteHashLife({ text });
   } catch (error) {
@@ -249,6 +267,7 @@ async function loadMacrocell(text: string, name: string): Promise<void> {
       `${loaded.readout.population.toLocaleString('en-US')} live cells from a macrocell.`,
     loaded.readout,
   );
+  noteThread(loaded.offThread);
 }
 
 async function choosePattern(name: string): Promise<void> {

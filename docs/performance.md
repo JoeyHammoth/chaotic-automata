@@ -151,5 +151,35 @@ difference shows up as module memory: **69 MB** for the macrocell path against *
 grid, measured on the built module with one fresh instance per pattern, because wasm memory never
 shrinks and a shared instance would report the peak of whatever ran first.
 
-The load runs in a worker, so the six seconds it takes block that thread rather than the page: the
-page paints its shell, and the readout and the first window arrive as messages.
+The load runs in a worker, so the seconds it takes block that thread rather than the page: the page
+paints its shell, and the readout and the first window arrive as messages.
+
+#### In the browser
+
+Measured on the page's own clock, on the production build served by `vite preview` and loaded by
+headless Chromium through Playwright: 1920×1080, no throttle, the gun already drawn, three runs each
+in a fresh browser context. The clock starts when the pattern select changes and stops when the
+status line names the macrocell, so it covers the fixture fetch, the read, the readout and the first
+640×640 window. The worker row is what the page does; the second row is the fallback a browser
+without module workers takes, forced here by refusing the worker's script.
+
+| Path | Runs | Median | Longest main-thread block |
+|---|---|---|---|
+| Worker | 7.2 / 9.2 / 10.7 s | **9.2 s** | none over 50 ms |
+| Page's own thread | 2.6 / 3.1 / 3.2 s | **3.1 s** | 2.0-2.4 s |
+
+The worker is the slower of the two, and that is the trade it makes: three times the wall time buys a
+page that never blocks. The fallback is quicker because it does the work in one go on the thread that
+is drawing, and the block it causes is the 2.0-2.4 s freeze the worker exists to avoid.
+
+Part of the worker's figure is its own start: the same page loads a 36-cell gun in 2.8 s through a
+worker against 1.2 s on its thread. The rest of the gap is not decomposed here, and the fresh module
+per load is the obvious suspect — the page's thread compiles the module once, on the first pattern,
+and keeps it, while every load starts a new worker. That is a reason to reuse one worker across
+loads, which this page does not do yet.
+
+Two caveats. The fixture comes from the local preview server, so neither row has a network component:
+the 1.7 MB macrocell is a disk read. And the page-thread row excludes the module's first compile,
+which the initial gun paid before the clock started, while the worker row pays it again on every load.
+`docs/methods.md` quotes the reader's own 3.0 s; the browser figure is larger than that because it
+covers the worker, the compile and the first window as well.

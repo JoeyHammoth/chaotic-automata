@@ -1,10 +1,10 @@
 // The HashLife module, off the page's thread.
 //
 // The tree lives in the module's memory and stays here: the page asks for the numbers and for the
-// pixels it is about to draw, and nothing else crosses the boundary. That is what keeps a six
-// second load from freezing the page — the load blocks this thread, which has nothing else to do.
+// pixels it is about to draw, and nothing else crosses the boundary. That is what keeps a long
+// load from freezing the page — the load blocks this thread, which has nothing else to do.
 
-import type { Readout, WorkerReply, WorkerRequest } from './remote';
+import { readoutOf, type WorkerReply, type WorkerRequest } from './remote';
 import type { Pattern } from './rle';
 import { createHashLife, createHashLifeFromMacrocell, type HashLife } from './wasm';
 
@@ -16,18 +16,6 @@ interface Scope {
 const scope = self as unknown as Scope;
 
 let hash: HashLife | null = null;
-
-function readoutOf(life: HashLife): Readout {
-  return {
-    generation: life.generation(),
-    population: life.population(),
-    nodes: life.nodes(),
-    cap: life.cap(),
-    capHits: life.capHits(),
-    level: life.level(),
-    bounds: life.bounds(),
-  };
-}
 
 function reply(message: WorkerReply, transfer?: Transferable[]): void {
   scope.postMessage(message, transfer);
