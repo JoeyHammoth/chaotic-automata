@@ -1,5 +1,11 @@
 [workspace]
-members = ["crates/ca-core", "crates/ca-wasm", "crates/ca-diff", "crates/ca-sweep"]
+members = [
+    "crates/ca-core",
+    "crates/ca-wasm",
+    "crates/ca-diff",
+    "crates/ca-sweep",
+    "crates/ca-cryptid",
+]
 resolver = "2"
 
 [workspace.package]

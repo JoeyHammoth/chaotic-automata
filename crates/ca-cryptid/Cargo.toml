@@ -1,0 +1,11 @@
+[package]
+name = "ca-cryptid"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The verifier's cryptid walk in Rust, checked against the Python producer"
+
+[[bin]]
+name = "ca-cryptid"
+path = "src/main.rs"

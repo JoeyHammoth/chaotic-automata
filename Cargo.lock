@@ -25,6 +25,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ca-cryptid"
+version = "0.1.0"
+
+[[package]]
 name = "ca-diff"
 version = "0.1.0"
 dependencies = [

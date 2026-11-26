@@ -88,6 +88,29 @@ test('a browser that cannot start the worker still draws the array on its own th
   await expect(page.locator('#tree-table')).toContainText('987,560');
 });
 
+test('a second load of the array reuses the macrocell it already fetched', async ({ page }) => {
+  let downloads = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('otcametapixel-array.mc')) downloads++;
+  });
+
+  await page.goto('/hashlife.html');
+  const pattern = page.locator('#pattern');
+  const status = page.locator('#status');
+
+  await pattern.selectOption('metapixelArray');
+  await expect(status).toContainText('258,764 live cells', { timeout: 40_000 });
+  expect(downloads).toBe(1);
+
+  await pattern.selectOption('gun');
+  await expect(status).toContainText('36 live cells', { timeout: 20_000 });
+  await pattern.selectOption('metapixelArray');
+  await expect(status).toContainText('Reloading OTCA metapixel, 2x2 array', { timeout: 20_000 });
+  await expect(status).toContainText('258,764 live cells', { timeout: 40_000 });
+  // The file is kept, not downloaded again; the tree is still built from it.
+  expect(downloads).toBe(1);
+});
+
 test('the URL carries the pattern and the generation', async ({ page }) => {
   await page.goto('/hashlife.html?pattern=gun&gen=16');
   await expect(page.locator('#readout')).toContainText('generation 16', { timeout: 20_000 });
