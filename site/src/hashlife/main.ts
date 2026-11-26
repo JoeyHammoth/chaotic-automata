@@ -213,9 +213,8 @@ async function adopt(
   summary: string,
   shown: Readout,
 ): Promise<void> {
-  // The tree being replaced lives in a worker of its own, and that worker's wasm memory is the
-  // heaviest thing on the page: leaving it running would keep a 38 MB arena alive for every pattern
-  // the page has shown. The new tree is already built by the time this runs, so nothing is lost.
+  // The worker has already replaced the old tree with this one, so the old handle points at nothing
+  // and has nothing of its own to release; this is the page letting go of it, not a teardown.
   if (hash !== null && hash !== life) hash.close();
   hash = life;
   patternName = name;
