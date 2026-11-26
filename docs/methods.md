@@ -627,6 +627,25 @@ the sentence beside the chart still says a billion steps decide nothing. The bud
 the product (`cryptid_steps`, `cryptid_samples`) so the figure cannot outlive the run that produced
 it, and a machine that halts inside the budget is recorded as halted rather than as growth.
 
+**The ladder has been carried to 10^10.** `crates/ca-cryptid` is the same walk without the
+interpreter's per-transition cost, kept as a mirror rather than as a second definition: every sample
+it reports is compared against `cryptid_trace`'s own at 10^6 in `tests/test_cryptid.py`, on each
+differential run, and the figures below were taken only after it had reproduced the product's 10^9
+samples exactly for all four machines. At 10^10 the written span is 154,330 (Bigfoot), 130,407
+(Antihydra), 280,927 (Lucy's Moonlight) and 6,264 (Space Needle), and none of them halted. The
+decade from 10^9 to 10^10 gains 105,503, 86,109, 175,567 and 3,016 cells — 3.2×, 2.9×, 2.2× and 1.9×
+the decade before, with drift at the top of 101,286, 77,911, 231,703 and 819. The first two hold the
+roughly threefold growth the 10^9 run showed; the last two grow a little more slowly than the decade
+before. It is the same statement about the walk at a larger budget, and still not one about halting.
+
+    cargo run -p ca-cryptid --release -- --machine <string> --steps 10000000000
+
+The product's budget stays at 10^9, because that is what the Python producer writes and what
+`python -m computation_atlas.verifier` reproduces in about twelve minutes; the same ladder in CPython
+is eight hours, which is a run nobody will repeat to check a page. The 10^10 figures are the mirror's
+measurement and are labelled as such; what CI gates is that the mirror agrees with the producer, not
+that the ladder is long.
+
 What is not claimed: the checker is a second implementation, not a proof, and it says only "this
 certificate replays". BB(5) is quoted from the paper, not re-proved here; the four-state sweep is
 this project's own, and its undecided residue is reported as it stands.

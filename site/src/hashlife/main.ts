@@ -68,6 +68,11 @@ const FIXTURES: Record<string, Fixture> = {
   },
 };
 
+// Fixture text already in hand, keyed by file. The macrocell array is 1.7 MB and the page can be
+// asked for the same pattern twice, so the second load is a read rather than another download and
+// another decode; the tree is still built again, because that is the engine's work, not the file's.
+const fetched = new Map<string, string>();
+
 let hash: RemoteHashLife | null = null;
 let view: View = { x: 0, y: 0, scale: 2 };
 let step = 1;
@@ -277,11 +282,16 @@ async function choosePattern(name: string): Promise<void> {
   }
   const fixture = FIXTURES[name];
   if (fixture === undefined) return;
-  status(`Fetching ${fixture.label}…`);
+  const cached = fetched.get(fixture.file);
+  status(cached === undefined ? `Fetching ${fixture.label}…` : `Reloading ${fixture.label}…`);
   try {
-    const response = await fetch(`${import.meta.env.BASE_URL}${fixture.file}`);
-    if (!response.ok) throw new PatternError(`the pattern file is missing (${response.status})`);
-    const text = await response.text();
+    let text = cached;
+    if (text === undefined) {
+      const response = await fetch(`${import.meta.env.BASE_URL}${fixture.file}`);
+      if (!response.ok) throw new PatternError(`the pattern file is missing (${response.status})`);
+      text = await response.text();
+      fetched.set(fixture.file, text);
+    }
     if (fixture.macrocell === true) {
       await loadMacrocell(text, name);
     } else {

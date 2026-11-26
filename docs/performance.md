@@ -178,6 +178,12 @@ A 36-cell gun, from a cold page to its status line, is 966 ms through a worker a
 the page's thread (three runs each, medians): the same second, and most of it the module's compile
 rather than anything about the pattern.
 
+A second load of the same pattern is cheaper than the first, because the page keeps the file it
+already has: at 1.6 Mbps and 150 ms of latency the array loads in 4,064 ms the first time and
+1,819 ms once the text is in hand (medians of three runs; 7,478 / 4,064 / 3,862 and 1,819 / 2,226 /
+1,715). What is left is the engine reading 1.7 MB of macrocell text — the download is the part a
+cache can remove, and the tree is still built again from scratch.
+
 The reader's 3.0 s above is a different measurement, a fresh module instance with its compile
 included. In the browser the module is already compiled by the first pattern, so the array's load
 adds less than the harness reports and the two figures are not each other's remainder.
