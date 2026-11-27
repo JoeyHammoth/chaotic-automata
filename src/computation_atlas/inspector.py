@@ -192,6 +192,37 @@ def filter_domain(rows: tuple[bytes, ...] | list[bytes], domain: Domain) -> tupl
     return tuple(out)
 
 
+def filtered_field(
+    rows: tuple[bytes, ...] | list[bytes],
+    domain: Domain | None,
+    region: PhaseDomain | None,
+) -> tuple[bytes, ...] | None:
+    """What the domain does not explain, or ``None`` when neither detector found a domain.
+
+    A periodic domain is removed cell by cell. A region domain forces nothing outright — its walls
+    are where the pattern stops being ``(0 Sigma)*`` — so the residue is the wall columns plus any
+    cell that breaks a forced zero, which is what a reader sees as a particle. Both halves use this
+    one function: a page that filtered differently from the headless report would be two answers to
+    the same question.
+    """
+    if domain is not None:
+        return filter_domain(rows, domain)
+    if region is None:
+        return None
+    residue = []
+    for row in rows:
+        tiled = domain_tiling(row, period=region.period)
+        walls = set(tiled.walls)
+        width = len(row)
+        marks = bytearray(width)
+        for index in range(width):
+            broken = tiled.phases[index] == index % region.period and row[index] != 0
+            on_wall = index in walls or (index - 1) % width in walls
+            marks[index] = 1 if broken or on_wall else 0
+        residue.append(bytes(marks))
+    return tuple(residue)
+
+
 def domain_violations(rows: tuple[bytes, ...] | list[bytes], domain: Domain) -> int:
     """Cells that break the claimed pattern. Zero is the only value a domain may report.
 
@@ -1188,8 +1219,8 @@ class Report:
 
     @property
     def particles_measured(self) -> bool:
-        """False when no domain was found, because then nothing has been filtered out."""
-        return self.domain is not None
+        """False when neither detector found a domain, because then nothing was filtered out."""
+        return self.domain is not None or self.region_domain is not None
 
     @property
     def decomposition(self) -> str:
@@ -1212,9 +1243,11 @@ def inspect(
 ) -> Report:
     rule = elementary(number) if radius == 1 else from_number(number, radius)
     rows = spacetime(rule, width, steps, seed)
+    observed = rows[settle:]
     domain = infer_domain(rows, max_period=max_period, settle=settle)
-    tracked = track(filter_domain(rows, domain)) if domain is not None else TrackSet((), ())
-    region = infer_phase_domain(rows[settle:])
+    region = infer_phase_domain(observed)
+    field = filtered_field(observed, domain, region)
+    tracked = track(field) if field is not None else TrackSet((), ())
     return Report(
         number=number,
         width=width,

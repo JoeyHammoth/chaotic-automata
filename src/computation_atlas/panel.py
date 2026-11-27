@@ -23,9 +23,8 @@ from .inspector import (
     Domain,
     PhaseDomain,
     Rule1D,
-    domain_tiling,
     elementary,
-    filter_domain,
+    filtered_field,
     from_number,
     infer_domain,
     infer_phase_domain,
@@ -93,30 +92,6 @@ def damage_field(rule: Rule1D, rows: tuple[bytes, ...]) -> tuple[bytes, ...]:
         bytes(a ^ b for a, b in zip(row, other, strict=True))
         for row, other in zip(rows, twin, strict=True)
     )
-
-
-def filtered_field(
-    rows: tuple[bytes, ...],
-    domain: Domain | None,
-    region: PhaseDomain | None,
-) -> tuple[bytes, ...] | None:
-    """What the domain does not explain: the rest of the row, or ``None`` for no domain."""
-    if domain is not None:
-        return filter_domain(rows, domain)
-    if region is None:
-        return None
-    residue = []
-    for row in rows:
-        tiled = domain_tiling(row)
-        walls = set(tiled.walls)
-        width = len(row)
-        marks = bytearray(width)
-        for index in range(width):
-            broken = tiled.phases[index] == index % 2 and row[index] != 0
-            on_wall = index in walls or (index - 1) % width in walls
-            marks[index] = 1 if broken or on_wall else 0
-        residue.append(bytes(marks))
-    return tuple(residue)
 
 
 def _centre(shape: tuple[int, ...]) -> int:
