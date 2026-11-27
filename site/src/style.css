@@ -120,8 +120,66 @@ h2 {
 }
 
 @media (min-width: 701px) {
+  #bb,
+  #labelled,
   #cryptid-table {
     table-layout: fixed;
+  }
+
+  #bb th:nth-child(1) {
+    width: 8%;
+  }
+
+  #bb th:nth-child(2) {
+    width: 12%;
+  }
+
+  #bb th:nth-child(3) {
+    width: 12%;
+  }
+
+  #bb th:nth-child(4) {
+    width: 15%;
+  }
+
+  #bb th:nth-child(5) {
+    width: 13%;
+  }
+
+  #bb th:nth-child(6) {
+    width: 13%;
+  }
+
+  #bb th:nth-child(7) {
+    width: 13%;
+  }
+
+  #bb th:nth-child(8) {
+    width: 14%;
+  }
+
+  #labelled th:nth-child(1) {
+    width: 38%;
+  }
+
+  #labelled th:nth-child(2) {
+    width: 10%;
+  }
+
+  #labelled th:nth-child(3) {
+    width: 24%;
+  }
+
+  #labelled th:nth-child(4) {
+    width: 12%;
+  }
+
+  #labelled th:nth-child(5) {
+    width: 16%;
+  }
+
+  #labelled th[scope='row'] {
+    overflow-wrap: anywhere;
   }
 
   #cryptid-table th:nth-child(1) {
