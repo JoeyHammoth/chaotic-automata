@@ -21,10 +21,27 @@ for (const path of pages) {
       await page.waitForLoadState('load');
       // Let a page that renders from a product finish; the overflow is measured after it settles.
       await page.waitForTimeout(1500);
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      );
-      expect(overflow, `at ${viewport.width}px`).toBeLessThanOrEqual(1);
+      const measured = await page.evaluate(() => {
+        const { scrollWidth, clientWidth } = document.documentElement;
+        const offenders = Array.from(document.querySelectorAll('body *'))
+          .filter((element) => element.getBoundingClientRect().right > clientWidth + 1)
+          .slice(0, 5)
+          .map((element) => {
+            const name = element.tagName.toLowerCase();
+            const id = element.id ? `#${element.id}` : '';
+            const classes =
+              typeof element.className === 'string' && element.className
+                ? `.${element.className.trim().split(/\s+/).join('.')}`
+                : '';
+            return `${name}${id}${classes} right@${Math.round(element.getBoundingClientRect().right)}`;
+          });
+        return { overflow: scrollWidth - clientWidth, offenders };
+      });
+      // The message names what is too wide, so a font-metric difference is diagnosable from CI logs.
+      expect(
+        measured.overflow,
+        `at ${viewport.width}px: ${measured.offenders.join(', ') || 'nothing reported'}`,
+      ).toBeLessThanOrEqual(1);
     }
   });
 }
