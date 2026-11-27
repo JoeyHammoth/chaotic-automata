@@ -5,6 +5,7 @@
 import {
   certificateSummary,
   checkSummary,
+  cryptidGrowthChart,
   cryptidLadderChart,
   cryptidLadderLine,
   cryptidSummary,
@@ -136,6 +137,44 @@ function traceChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement {
   return svg;
 }
 
+/**
+ * The span gained per decade, drawn under the trace. The mirror's last decade is hollow for the same
+ * reason its point is: that decade belongs to the longer run, not to the product.
+ */
+function growthChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement {
+  const chart = cryptidGrowthChart(trace, ladder);
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 132 44');
+  svg.setAttribute('width', '132');
+  svg.setAttribute('height', '44');
+  svg.setAttribute('class', 'growth');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', chart.label);
+  for (const bar of chart.bars) {
+    const rect = document.createElementNS(SVG, 'rect');
+    rect.setAttribute('x', bar.x.toFixed(1));
+    rect.setAttribute('y', bar.y.toFixed(1));
+    rect.setAttribute('width', bar.width.toFixed(1));
+    rect.setAttribute('height', bar.height.toFixed(1));
+    if (bar.mirror) {
+      rect.setAttribute('fill', 'none');
+      rect.setAttribute('stroke', 'currentColor');
+      rect.setAttribute('stroke-width', '1.2');
+    } else {
+      rect.setAttribute('fill', 'currentColor');
+    }
+    svg.append(rect);
+  }
+  return svg;
+}
+
+function caption(text: string): HTMLSpanElement {
+  const node = document.createElement('span');
+  node.className = 'chart-caption';
+  node.textContent = text;
+  return node;
+}
+
 function renderCryptids(product: VerifierProduct, ladder: CryptidLadder | null): void {
   const body = element<HTMLTableSectionElement>('cryptid-table');
   body.replaceChildren();
@@ -152,6 +191,9 @@ function renderCryptids(product: VerifierProduct, ladder: CryptidLadder | null):
     const mine = document.createElement('td');
     mine.append(
       traceChart(cryptid.trace, longer),
+      caption('span by step'),
+      growthChart(cryptid.trace, longer),
+      caption('span gained per decade'),
       document.createTextNode(
         `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.` +
           (longer === undefined ? '' : ` ${cryptidLadderLine(cryptid.trace, longer)}.`),
