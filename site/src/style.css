@@ -42,6 +42,12 @@ h2 {
   max-width: 70ch;
 }
 
+.chart-caption {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
 .atlas {
   border: 1px solid #1e242c;
   border-radius: 8px;

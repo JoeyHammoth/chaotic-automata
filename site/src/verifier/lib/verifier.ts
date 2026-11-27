@@ -325,6 +325,81 @@ export function cryptidLadderChart(
   return { points: mirrored, maxSpan, label };
 }
 
+export interface GrowthBar {
+  /** The decade the bar covers. */
+  from: number;
+  to: number;
+  /** Span gained across that decade. */
+  delta: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** True when only the mirror's longer run reaches this decade. */
+  mirror: boolean;
+}
+
+export interface GrowthChart {
+  bars: GrowthBar[];
+  maxDelta: number;
+  /** The words the chart carries for a reader who cannot see it. */
+  label: string;
+}
+
+/**
+ * The span gained in each decade, as bars.
+ *
+ * The line chart says the walk keeps spreading; this says how much it gained where, which is what
+ * separates a walk still accelerating at the end of the budget from one that has settled. A decade
+ * that gained nothing is a bar of zero height rather than an omitted bar, and a negative gain is
+ * drawn at zero but still spoken in the label, because losing ground is a measurement too.
+ */
+export function cryptidGrowthChart(
+  trace: CryptidTrace,
+  ladder: CryptidTrace | undefined,
+  width = 132,
+  height = 44,
+): GrowthChart {
+  const product = trace.samples.filter((sample) => sample.steps > 0);
+  const beyond = (ladder?.samples ?? []).filter((sample) => sample.steps > trace.steps);
+  const samples = [...product, ...beyond];
+  const gains = samples.slice(1).map((sample, index) => {
+    const previous = samples[index] as CryptidSample;
+    return {
+      from: previous.steps,
+      to: sample.steps,
+      delta: sample.delta ?? sample.span - previous.span,
+      mirror: index + 1 >= product.length,
+    };
+  });
+  const maxDelta = Math.max(1, ...gains.map((gain) => gain.delta));
+  const slot = (width - 4) / Math.max(1, gains.length);
+  const bars = gains.map((gain, index) => {
+    const barHeight = (Math.max(0, gain.delta) / maxDelta) * (height - 6);
+    return {
+      ...gain,
+      x: 2 + index * slot,
+      y: height - 2 - barHeight,
+      width: Math.max(1, slot - 2),
+      height: barHeight,
+    };
+  });
+  const signed = (value: number) =>
+    `${value >= 0 ? '+' : '-'}${Math.abs(value).toLocaleString('en-US')}`;
+  const label =
+    gains.length === 0
+      ? `no decade to compare over ${trace.steps.toLocaleString('en-US')} steps`
+      : 'span gained per decade: ' +
+        gains
+          .map(
+            (gain) =>
+              `${signed(gain.delta)} from ${gain.from.toLocaleString('en-US')} ` +
+              `to ${gain.to.toLocaleString('en-US')}`,
+          )
+          .join(', ');
+  return { bars, maxDelta, label };
+}
+
 export function formatSteps(steps: number | null): string {
   if (steps === null) return 'did not halt inside the cap';
   return steps.toLocaleString('en-US');

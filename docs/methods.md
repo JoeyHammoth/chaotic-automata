@@ -579,7 +579,13 @@ string quoted in the design document did not match the wiki and has been replace
 `1RB1RA_0LC1LE_1LD1LC_1LA0LB_1LF1RE_---0RA`; every string in the product now round-trips through the
 parser to exactly the text the wiki publishes.
 
-**As implemented.** `src/computation_atlas/verifier.py` holds the deciders and the search,
+**As implemented.** The champion's 47-million-step replay is a differential test rather than a
+default one: it costs about half a minute of CPython, and the mirror walks the same machine in under
+a second, so the two step counts are compared where the mirror is built and the default suite still
+runs in one pass. The product's committed `champion` record is the producer's own run, and the
+default suite checks that record against the quoted value.
+
+`src/computation_atlas/verifier.py` holds the deciders and the search,
 `src/computation_atlas/checker.py` the checker: its own parser and its own stepper, no import from
 the decider module, so a bug in one cannot hide in the other. The search enumerates machines in
 define-on-visit tree normal form — the first transition is fixed to `1RB` and every state is
@@ -622,7 +628,10 @@ times the previous decade's for the first three and nearly twice for Space Needl
 levelled off inside the budget — which is a statement about a billion steps and not about halting.
 The row draws the span against a log step axis and carries the same numbers in its `aria-label`,
 including that fastest decade, so the chart adds a picture to the sentence rather than replacing it —
-a reader without the chart still gets every number. Growth is the shape of the walk and not a proof:
+a reader without the chart still gets every number. A second small chart draws the span gained in
+each decade as bars, with the mirror's last decade hollow like its point, so the growth rate is a
+picture too and the numbers are again in its `aria-label`; a decade that gained nothing is a bar of
+zero height, never a bar omitted. Growth is the shape of the walk and not a proof:
 the sentence beside the chart still says a billion steps decide nothing. The budget is written into
 the product (`cryptid_steps`, `cryptid_samples`) so the figure cannot outlive the run that produced
 it, and a machine that halts inside the budget is recorded as halted rather than as growth.
@@ -640,9 +649,21 @@ before. It is the same statement about the walk at a larger budget, and still no
 
     cargo run -p ca-cryptid --release -- --machine <string> --steps 10000000000
 
-The product's budget stays at 10^9, because that is what the Python producer writes and what
-`python -m computation_atlas.verifier` reproduces in about twelve minutes; the same ladder in CPython
-is eight hours, which is a run nobody will repeat to check a page. The 10^10 figures are the mirror's
+**The product's budget stays at 10^9, and that is a decision rather than an accident of which
+producer is fast.** [Issue #86](https://github.com/JoeyHammoth/chaotic-automata/issues/86) asked
+whether the ladder's 10^10 should become the product's own; the answer recorded here is no, and the
+page shows why the distinction is visible rather than silent: the solid points are the producer's
+own 10^9 samples and the mirror's decade is hollow, with each row naming which run is which. The
+alternatives were rejected for now rather than unconsidered. Raising the product to 10^10 costs eight
+hours of CPython per regeneration, which is a run nobody will repeat to check a page; a per-machine
+budget would put a number in the page that the producer does not write; and dropping the ladder
+would lose the only view of the walk past the product's budget. The decision reverses if the
+producer gains an accelerated path — the design document's compressed simulator is the candidate —
+at which point the product's budget and the ladder's become one number and the ladder artefact
+retires.
+
+The producer writes its 10^9 samples in about twelve minutes; the same ladder in CPython is eight
+hours, which is a run nobody will repeat to check a page. The 10^10 figures are the mirror's
 measurement and are labelled as such. They are also a committed artefact —
 `products/verifier/cryptid-ladder.json`, written by `python -m computation_atlas.cryptid_ladder` from
 the machine strings in `verifier.CRYPTIDS` — so the page draws the producer's own 10^9 walk with the

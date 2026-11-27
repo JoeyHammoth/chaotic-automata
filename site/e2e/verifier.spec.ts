@@ -51,6 +51,17 @@ test('a cryptid is shown with its string and without a verdict', async ({ page }
   await expect(chart.locator('circle[fill="none"]')).toHaveCount(1);
   await expect(table).toContainText('The mirror carries the same walk to 10,000,000,000 steps');
   await expect(table).toContainText('agrees with the product through 1,000,000,000 steps');
+  // The growth rate is drawn too: one bar per decade, and the mirror's last decade hollow.
+  const growth = table.locator('svg.growth').first();
+  await expect(growth).toHaveAttribute('aria-label', /span gained per decade/);
+  await expect(growth).toHaveAttribute(
+    'aria-label',
+    /\+105,503 from 1,000,000,000 to 10,000,000,000/,
+  );
+  await expect(growth.locator('rect')).toHaveCount(7);
+  await expect(growth.locator('rect[fill="none"]')).toHaveCount(1);
+  await expect(table.locator('svg.growth')).toHaveCount(4);
+  await expect(table).toContainText('span gained per decade');
   await expect(page.locator('#cryptid-note')).toContainText('not evidence');
 });
 

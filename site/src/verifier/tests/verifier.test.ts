@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   certificateSummary,
   checkSummary,
+  cryptidGrowthChart,
   cryptidLadderChart,
   cryptidLadderLine,
   cryptidSummary,
@@ -200,6 +201,41 @@ describe("the mirror's longer run", () => {
     expect(line).toContain('halted');
     expect(line).toContain('past the product');
     expect(line).not.toContain('proved');
+  });
+});
+
+describe('span gained per decade', () => {
+  const ladder: CryptidTrace = {
+    halted: false,
+    steps: 10_000_000_000,
+    samples: [
+      ...cryptid({}).trace.samples,
+      { steps: 10_000_000_000, span: 2_000, drift: 1_500, delta: 446 },
+    ],
+  };
+
+  it('draws one bar per decade, with the mirror\'s decade marked', () => {
+    const chart = cryptidGrowthChart(cryptid({}).trace, ladder);
+    expect(chart.bars.map((bar) => bar.delta)).toEqual([1_524, 446]);
+    expect(chart.bars.map((bar) => bar.mirror)).toEqual([false, true]);
+    // The bigger gain is the taller bar, and the bars sit side by side.
+    expect(chart.bars[1]!.height).toBeLessThan(chart.bars[0]!.height);
+    expect(chart.bars[1]!.x).toBeGreaterThan(chart.bars[0]!.x);
+  });
+
+  it('says every gain in words, and never calls growth a proof', () => {
+    const chart = cryptidGrowthChart(cryptid({}).trace, ladder);
+    expect(chart.label).toContain('span gained per decade');
+    expect(chart.label).toContain('+1,524 from 1,000 to 1,000,000');
+    expect(chart.label).toContain('+446 from 1,000,000 to 10,000,000,000');
+    expect(chart.label).not.toContain('proved');
+  });
+
+  it('draws the product alone when the ladder is missing', () => {
+    const chart = cryptidGrowthChart(cryptid({}).trace, undefined);
+    expect(chart.bars).toHaveLength(1);
+    expect(chart.bars[0]!.mirror).toBe(false);
+    expect(chart.label).not.toContain('mirror');
   });
 });
 

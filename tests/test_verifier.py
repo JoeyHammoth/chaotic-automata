@@ -65,11 +65,6 @@ def test_the_search_reproduces_s2():
     assert run["bouncer"] > 0, "no confined cycle was found, so the bouncer count is untested"
 
 
-def test_the_champion_halts_after_the_quoted_step_count():
-    steps = verifier.steps_to_halt(verifier.parse(verifier.CHAMPION), verifier.CHAMPION_STEPS + 1)
-    assert steps == verifier.CHAMPION_STEPS
-
-
 @pytest.fixture(scope="module")
 def document():
     assert MANIFEST.exists(), "products/verifier/manifest.json is missing; run the module"
