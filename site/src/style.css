@@ -58,6 +58,97 @@ h2 {
   margin: 0;
 }
 
+/*
+ * A phone cannot hold five or eight columns. Each verifier row becomes a card instead, with the
+ * column name repeated above its value, so nothing is hidden and nothing scrolls sideways. The page
+ * keeps the table roles set in `keepTableSemantics`, so a screen reader still hears a table.
+ */
+@media (max-width: 700px) {
+  body.verifier table.data {
+    display: block;
+  }
+
+  body.verifier table.data thead {
+    display: none;
+  }
+
+  /* A block table would let the caption shrink to a strip; it stays a full-width line. */
+  body.verifier table.data caption {
+    display: block;
+    width: 100%;
+    max-width: none;
+  }
+
+  body.verifier table.data tbody,
+  body.verifier table.data tr,
+  body.verifier table.data th,
+  body.verifier table.data td {
+    display: block;
+  }
+
+  body.verifier table.data tr {
+    border: 1px solid #1e242c;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  body.verifier table.data th,
+  body.verifier table.data td {
+    width: auto;
+    border: 0;
+    padding: 0.15rem 0;
+  }
+
+  body.verifier table.data th[scope='row'] {
+    font-size: 0.95rem;
+    padding-bottom: 0.3rem;
+  }
+
+  body.verifier table.data td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  body.verifier table.data td.certificate {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (min-width: 701px) {
+  #cryptid-table {
+    table-layout: fixed;
+  }
+
+  #cryptid-table th:nth-child(1) {
+    width: 9%;
+  }
+
+  #cryptid-table th:nth-child(2) {
+    width: 7%;
+  }
+
+  #cryptid-table th:nth-child(3) {
+    width: 26%;
+  }
+
+  #cryptid-table th:nth-child(4) {
+    width: 17%;
+  }
+
+  #cryptid-table th:nth-child(5) {
+    width: 41%;
+  }
+
+  #cryptid-table td.certificate {
+    overflow-wrap: anywhere;
+  }
+}
+
 .chart-caption {
   display: block;
   color: var(--muted);

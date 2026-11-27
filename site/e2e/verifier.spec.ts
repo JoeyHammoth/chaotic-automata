@@ -78,7 +78,41 @@ test('a cryptid is shown with its string and without a verdict', async ({ page }
   // The sentence starts below the charts rather than wrapping around them.
   const proseBox = await table.locator('p.cryptid-run').first().boundingBox();
   expect(proseBox?.y ?? 0).toBeGreaterThan((traceBox?.y ?? 0) + 40);
+  // A pointer can read each point's step and span too.
+  await expect(trace.locator('circle title')).toHaveCount(8);
+  await expect(trace.locator('circle title').first()).toHaveText(
+    "54 cells at 1,000 steps (the product's own samples)",
+  );
+  await expect(trace.locator('circle title').last()).toHaveText(
+    "154,330 cells at 10,000,000,000 steps (the mirror's longer run)",
+  );
   await expect(page.locator('#cryptid-note')).toContainText('not evidence');
+});
+
+test('the tables stack into cards on a phone, without sideways scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/verifier.html');
+  await expect(page.locator('#cryptid-table tr').first()).toBeVisible({ timeout: 15_000 });
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+  // The header row is folded into each card: the column name sits above every value.
+  // `#cryptid-table` is the tbody, so the table element is found by the body it holds.
+  const cryptidTable = page
+    .locator('table.data')
+    .filter({ has: page.locator('#cryptid-table') });
+  await expect(cryptidTable.locator('thead')).toBeHidden();
+  await expect(page.locator('#cryptid-table td[data-label="this pipeline"]').first()).toBeVisible();
+  await expect(page.locator('#bb-table td[data-label="undecided"]').first()).toBeVisible();
+  // Stacking must not cost the semantics: the roles keep it a table to assistive technology.
+  await expect(cryptidTable).toHaveAttribute('role', 'table');
+  await expect(page.locator('#cryptid-table tr').first()).toHaveAttribute('role', 'row');
+  await expect(page.locator('#cryptid-table td').first()).toHaveAttribute('role', 'cell');
+  await expect(page.locator('#cryptid-table th').first()).toHaveAttribute('role', 'rowheader');
+  // The charts still fit side by side inside the card.
+  await expect(page.locator('#cryptid-table svg.trace').first()).toBeVisible();
+  await expect(page.locator('#cryptid-table svg.growth').first()).toBeVisible();
 });
 
 test('a certificate is shown with its mutations refused', async ({ page }) => {
