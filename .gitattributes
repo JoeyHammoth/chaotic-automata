@@ -1,1 +1,3 @@
 site/src/hashlife/tests/golden/*.mc text eol=lf
+# Captured oracle output: stored byte for byte, CRLF and all, so a fixture is what Golly wrote.
+crates/ca-core/tests/golden/*.mc -text

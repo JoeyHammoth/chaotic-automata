@@ -331,9 +331,32 @@ reason is the tree rather than the rule: a compressed step is only usable when t
 fits inside the centre half of its root, and a 128-wide chaotic soup fits nothing above a single
 generation, so `step` falls back to the sparse sweep.
 
-Not yet done, and therefore not claimed: Golly-captured golden generations. The population
-criterion is met exactly for still lifes and as the engine's own count elsewhere — it is not yet
-cross-checked against the reference over long runs.
+**Golly's golden generations pass.** Three fixtures in `crates/ca-core/tests/golden/` are Golly's
+own output, committed as it wrote them: a glider at generation 4, the R-pentomino at 1103 and acorn
+at 4096. They were captured on 2026-11-28 with Golly 4.3's batch binary,
+`bgolly -h -m <generation> -o <file>.mc <pattern>` — hashing on, macrocell out — and the glider and
+R-pentomino pattern files are the three lines the test spells out. Each fixture is read back through
+the engine's own macrocell reader and compared with the engine's own run, cell for cell after
+translation, at the generation the file records. The populations are checked against the counts
+Golly printed while capturing rather than against the engine's own: 5, 116 and 744. Golly is
+GPL-2.0-or-later and is used only as a black-box oracle — no Golly code is linked, vendored or
+translated, and a fixture is text the test reads, not code it runs. Regenerating one is a deliberate
+commit that records the command above. Acorn stops at 4096 because past it its spreading gliders
+outgrow every step its remaining generations allow, and the fallback is a sparse sweep of a million
+cells per generation: correct, and minutes of it in a debug build.
+
+**A compressed step needs room for the pattern to grow.** `next_generation` returns the centre half
+of the root, so a live cell that ends up outside that half is dropped. The first version of the
+step only asked whether the pattern was somewhere inside the half, which leaves no margin at all;
+the Golly goldens caught it. Acorn at generation 4608 is about a thousand cells wide, it was stepped
+512 generations inside a 2048 root, four escaping gliders crossed the edge of the centre half and
+were lost, and the population stayed twenty cells short from generation 5120 on. A step is now taken
+only when the pattern is no wider than the step itself, and `rebuild` centres the pattern inside the
+centre half rather than the whole root, which gives `(half - width) / 2` cells of slack per side.
+That covers a frontier moving at Life's c/2 speed limit for the whole step. The R-pentomino at two
+generations is the same bug in miniature — five cells where the reference has seven — and is pinned
+by its own differential test. The cost is honest and visible: a pattern too large for the step that
+remains falls back to the dense one-generation sweep, which is why the acorn golden stops at 4096.
 
 **The zoom UI.** `crates/ca-wasm` exposes the tree itself: `hl_input` and `hl_load` for a pattern,
 `hl_load_macrocell` for a Golly file, `hl_step` for the variable time step, `hl_view` for a
