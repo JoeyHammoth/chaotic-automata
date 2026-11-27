@@ -23,24 +23,41 @@ for (const path of pages) {
       await page.waitForTimeout(1500);
       const measured = await page.evaluate(() => {
         const { scrollWidth, clientWidth } = document.documentElement;
+        const name = (element: Element) => {
+          const id = element.id ? `#${element.id}` : '';
+          const classes =
+            typeof (element as HTMLElement).className === 'string' &&
+            (element as HTMLElement).className
+              ? `.${(element as HTMLElement).className.trim().split(/\s+/).join('.')}`
+              : '';
+          return `${element.tagName.toLowerCase()}${id}${classes}`;
+        };
         const offenders = Array.from(document.querySelectorAll('body *'))
           .filter((element) => element.getBoundingClientRect().right > clientWidth + 1)
+          .sort((a, b) => b.getBoundingClientRect().right - a.getBoundingClientRect().right)
           .slice(0, 5)
-          .map((element) => {
-            const name = element.tagName.toLowerCase();
-            const id = element.id ? `#${element.id}` : '';
-            const classes =
-              typeof element.className === 'string' && element.className
-                ? `.${element.className.trim().split(/\s+/).join('.')}`
-                : '';
-            return `${name}${id}${classes} right@${Math.round(element.getBoundingClientRect().right)}`;
-          });
-        return { overflow: scrollWidth - clientWidth, offenders };
+          .map((element) => `${name(element)} right@${Math.round(element.getBoundingClientRect().right)}`);
+        // Text can paint past its box, so the box list alone can come back empty; walk the text too.
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        const textOffenders: string[] = [];
+        for (let node = walker.nextNode(); node && textOffenders.length < 5; ) {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          const past = Array.from(range.getClientRects()).find((rect) => rect.right > clientWidth + 1);
+          if (past && node.parentElement) {
+            textOffenders.push(
+              `${name(node.parentElement)} text "${(node.textContent ?? '').trim().slice(0, 40)}"`,
+            );
+          }
+          node = walker.nextNode();
+        }
+        return { overflow: scrollWidth - clientWidth, offenders, textOffenders };
       });
       // The message names what is too wide, so a font-metric difference is diagnosable from CI logs.
       expect(
         measured.overflow,
-        `at ${viewport.width}px: ${measured.offenders.join(', ') || 'nothing reported'}`,
+        `at ${viewport.width}px: ${measured.offenders.join(', ') || 'no box past the edge'}` +
+          `; text: ${measured.textOffenders.join(', ') || 'none'}`,
       ).toBeLessThanOrEqual(1);
     }
   });

@@ -544,6 +544,13 @@ table.data {
   font-variant-numeric: tabular-nums;
 }
 
+/* A table whose columns cannot all fit a phone keeps its own width and scrolls inside this box,
+   rather than pushing the page sideways or breaking words in half. Table semantics are untouched. */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 table.data caption {
   text-align: left;
   color: var(--muted);
