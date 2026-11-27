@@ -11,6 +11,7 @@ import {
   cryptidSummary,
   cryptidTraceLine,
   formatSteps,
+  growthBarLine,
   loadLadder,
   loadVerifier,
   residue,
@@ -97,6 +98,39 @@ function renderLabelled(product: VerifierProduct): void {
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
+const CHART_WIDTH = 132;
+const CHART_HEIGHT = 44;
+
+/** The box both charts live in: one size, one role, one spoken label. */
+function chartSvg(className: string, label: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`);
+  svg.setAttribute('width', String(CHART_WIDTH));
+  svg.setAttribute('height', String(CHART_HEIGHT));
+  svg.setAttribute('class', className);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', label);
+  return svg;
+}
+
+/** A point or bar the product's own run does not reach is drawn hollow, never filled in. */
+function markOutOfProduct(shape: SVGElement, mirror: boolean): void {
+  if (!mirror) {
+    shape.setAttribute('fill', 'currentColor');
+    return;
+  }
+  shape.setAttribute('fill', 'none');
+  shape.setAttribute('stroke', 'currentColor');
+  shape.setAttribute('stroke-width', '1.2');
+}
+
+/** A chart with its caption beneath it, so the two charts can sit side by side. */
+function chartFigure(svg: SVGSVGElement, text: string): HTMLSpanElement {
+  const figure = document.createElement('span');
+  figure.className = 'chart-figure';
+  figure.append(svg, caption(text));
+  return figure;
+}
 
 /**
  * The span over the product's billion steps and the mirror's decade beyond it, drawn small. The
@@ -104,13 +138,7 @@ const SVG = 'http://www.w3.org/2000/svg';
  */
 function traceChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement {
   const chart = cryptidLadderChart(trace, ladder);
-  const svg = document.createElementNS(SVG, 'svg');
-  svg.setAttribute('viewBox', '0 0 132 44');
-  svg.setAttribute('width', '132');
-  svg.setAttribute('height', '44');
-  svg.setAttribute('class', 'trace');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', chart.label);
+  const svg = chartSvg('trace', chart.label);
   const line = document.createElementNS(SVG, 'polyline');
   line.setAttribute(
     'points',
@@ -125,13 +153,7 @@ function traceChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement {
     dot.setAttribute('cx', point.x.toFixed(1));
     dot.setAttribute('cy', point.y.toFixed(1));
     dot.setAttribute('r', '1.8');
-    if (point.mirror === true) {
-      dot.setAttribute('fill', 'none');
-      dot.setAttribute('stroke', 'currentColor');
-      dot.setAttribute('stroke-width', '1.2');
-    } else {
-      dot.setAttribute('fill', 'currentColor');
-    }
+    markOutOfProduct(dot, point.mirror === true);
     svg.append(dot);
   }
   return svg;
@@ -143,26 +165,19 @@ function traceChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement {
  */
 function growthChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement {
   const chart = cryptidGrowthChart(trace, ladder);
-  const svg = document.createElementNS(SVG, 'svg');
-  svg.setAttribute('viewBox', '0 0 132 44');
-  svg.setAttribute('width', '132');
-  svg.setAttribute('height', '44');
-  svg.setAttribute('class', 'growth');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', chart.label);
+  const svg = chartSvg('growth', chart.label);
   for (const bar of chart.bars) {
     const rect = document.createElementNS(SVG, 'rect');
     rect.setAttribute('x', bar.x.toFixed(1));
     rect.setAttribute('y', bar.y.toFixed(1));
     rect.setAttribute('width', bar.width.toFixed(1));
     rect.setAttribute('height', bar.height.toFixed(1));
-    if (bar.mirror) {
-      rect.setAttribute('fill', 'none');
-      rect.setAttribute('stroke', 'currentColor');
-      rect.setAttribute('stroke-width', '1.2');
-    } else {
-      rect.setAttribute('fill', 'currentColor');
-    }
+    markOutOfProduct(rect, bar.mirror);
+    // A pointer can read the same sentence the label carries, without a screen reader.
+    const title = document.createElementNS(SVG, 'title');
+    const run = bar.mirror ? "the mirror's longer run" : "the product's own samples";
+    title.textContent = `${growthBarLine(bar)} (${run})`;
+    rect.append(title);
     svg.append(rect);
   }
   return svg;
@@ -189,16 +204,18 @@ function renderCryptids(product: VerifierProduct, ladder: CryptidLadder | null):
     machine.className = 'certificate';
     machine.textContent = cryptid.string;
     const mine = document.createElement('td');
-    mine.append(
-      traceChart(cryptid.trace, longer),
-      caption('span by step'),
-      growthChart(cryptid.trace, longer),
-      caption('span gained per decade'),
-      document.createTextNode(
-        `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.` +
-          (longer === undefined ? '' : ` ${cryptidLadderLine(cryptid.trace, longer)}.`),
-      ),
+    const charts = document.createElement('div');
+    charts.className = 'charts';
+    charts.append(
+      chartFigure(traceChart(cryptid.trace, longer), 'span by step'),
+      chartFigure(growthChart(cryptid.trace, longer), 'span gained per decade'),
     );
+    const prose = document.createElement('p');
+    prose.className = 'cryptid-run';
+    prose.textContent =
+      `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.` +
+      (longer === undefined ? '' : ` ${cryptidLadderLine(cryptid.trace, longer)}.`);
+    mine.append(charts, prose);
     row.append(
       name,
       cell(cryptid.domain),
