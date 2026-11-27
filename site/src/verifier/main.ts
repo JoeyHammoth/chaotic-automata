@@ -1,16 +1,20 @@
 // The Verifier page: it renders the pipeline's own verdicts and never computes one. Every number on
-// screen comes from products/verifier/manifest.json, so the page cannot disagree with the run.
+// screen comes from the product files in products/verifier — the producer's manifest, and the
+// mirror's ladder beside it — so the page cannot disagree with either run.
 
 import {
   certificateSummary,
   checkSummary,
+  cryptidLadderChart,
+  cryptidLadderLine,
   cryptidSummary,
-  cryptidTraceChart,
   cryptidTraceLine,
   formatSteps,
+  loadLadder,
   loadVerifier,
   residue,
   verdictBadge,
+  type CryptidLadder,
   type CryptidTrace,
   type Labelled,
   type VerifierProduct,
@@ -93,9 +97,12 @@ function renderLabelled(product: VerifierProduct): void {
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** The span over a billion steps, drawn small. The sentence beside it carries the numbers. */
-function traceChart(trace: CryptidTrace): SVGSVGElement {
-  const chart = cryptidTraceChart(trace);
+/**
+ * The span over the product's billion steps and the mirror's decade beyond it, drawn small. The
+ * sentence beside it carries the numbers; a hollow dot is a point only the longer run reaches.
+ */
+function traceChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement {
+  const chart = cryptidLadderChart(trace, ladder);
   const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('viewBox', '0 0 132 44');
   svg.setAttribute('width', '132');
@@ -117,17 +124,24 @@ function traceChart(trace: CryptidTrace): SVGSVGElement {
     dot.setAttribute('cx', point.x.toFixed(1));
     dot.setAttribute('cy', point.y.toFixed(1));
     dot.setAttribute('r', '1.8');
-    dot.setAttribute('fill', 'currentColor');
+    if (point.mirror === true) {
+      dot.setAttribute('fill', 'none');
+      dot.setAttribute('stroke', 'currentColor');
+      dot.setAttribute('stroke-width', '1.2');
+    } else {
+      dot.setAttribute('fill', 'currentColor');
+    }
     svg.append(dot);
   }
   return svg;
 }
 
-function renderCryptids(product: VerifierProduct): void {
+function renderCryptids(product: VerifierProduct, ladder: CryptidLadder | null): void {
   const body = element<HTMLTableSectionElement>('cryptid-table');
   body.replaceChildren();
   for (const cryptid of product.cryptids) {
     const summary = cryptidSummary(cryptid);
+    const longer = ladder?.machines.find((entry) => entry.name === cryptid.name);
     const row = document.createElement('tr');
     const name = document.createElement('th');
     name.scope = 'row';
@@ -137,9 +151,10 @@ function renderCryptids(product: VerifierProduct): void {
     machine.textContent = cryptid.string;
     const mine = document.createElement('td');
     mine.append(
-      traceChart(cryptid.trace),
+      traceChart(cryptid.trace, longer),
       document.createTextNode(
-        `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.`,
+        `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.` +
+          (longer === undefined ? '' : ` ${cryptidLadderLine(cryptid.trace, longer)}.`),
       ),
     );
     row.append(
@@ -196,11 +211,11 @@ function renderClaims(product: VerifierProduct): void {
   }
 }
 
-function render(product: VerifierProduct): void {
+function render(product: VerifierProduct, ladder: CryptidLadder | null): void {
   renderResidue(product);
   renderBb(product);
   renderLabelled(product);
-  renderCryptids(product);
+  renderCryptids(product, ladder);
   renderClaims(product);
   const select = element<HTMLSelectElement>('certificate-select');
   select.replaceChildren();
@@ -218,11 +233,14 @@ function render(product: VerifierProduct): void {
   if (first !== undefined) renderCertificate(product, first);
   element('status').textContent =
     `product v${product.version}, seed ${product.seed}, cap ${product.cap} steps, ` +
-    `fingerprints every ${product.check_every} steps.`;
+    `fingerprints every ${product.check_every} steps` +
+    (ladder === null
+      ? '.'
+      : `; the mirror's ladder reaches ${ladder.steps.toLocaleString('en-US')} steps.`);
 }
 
-loadVerifier(base)
-  .then(render)
+Promise.all([loadVerifier(base), loadLadder(base).catch(() => null)])
+  .then(([product, ladder]) => render(product, ladder))
   .catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     const banner = element('error');

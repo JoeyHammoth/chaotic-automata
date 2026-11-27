@@ -3,9 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from computation_atlas import checker, verifier
+from computation_atlas import checker, cryptid_ladder, verifier
 
 MANIFEST = Path("products/verifier/manifest.json")
+LADDER = Path("products/verifier/cryptid-ladder.json")
 
 
 def test_a_machine_string_round_trips_and_a_halt_is_canonical():
@@ -146,3 +147,29 @@ def test_a_heuristic_verdict_is_never_recorded_as_certified(document):
         if entry["verdict"] == "heuristic":
             assert entry["certificate"] is None
             assert entry["checker"] is None
+
+
+def test_the_committed_ladder_extends_the_product_through_its_budget():
+    """One walk, two runs: the mirror's decade must extend the product, not restate it.
+
+    This needs no Rust binary, only the two committed artefacts, so it runs in the pipeline job.
+    Where the runs overlap the samples must be equal — including the span each decade gained — and
+    the ladder must reach exactly one decade further, with growth in that decade too.
+    """
+    ladder = json.loads(LADDER.read_text(encoding="utf-8"))
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    assert ladder["steps"] == cryptid_ladder.LADDER_STEPS
+    assert ladder["generated_by"] == "crates/ca-cryptid"
+    assert ladder["samples"] == sorted(set(ladder["samples"]))
+    assert ladder["samples"][-1] == cryptid_ladder.LADDER_STEPS
+    longer = {entry["name"]: entry for entry in ladder["machines"]}
+    assert len(longer) == len(manifest["cryptids"])
+    for entry in manifest["cryptids"]:
+        product = entry["trace"]
+        mirror = longer[entry["name"]]
+        assert mirror["string"] == entry["string"]
+        assert mirror["halted"] is False
+        reached = [sample for sample in mirror["samples"] if sample["steps"] <= product["steps"]]
+        assert reached == product["samples"], "the ladder and the product disagree where they meet"
+        assert mirror["samples"][-1]["steps"] == cryptid_ladder.LADDER_STEPS
+        assert mirror["samples"][-1]["span"] > mirror["samples"][-2]["span"]

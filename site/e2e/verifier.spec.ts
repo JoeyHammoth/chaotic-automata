@@ -44,9 +44,13 @@ test('a cryptid is shown with its string and without a verdict', async ({ page }
   // The growth is also drawn, and the drawing says its numbers out loud — including the decade the
   // span grows fastest in, which is what makes the picture more than "it went up".
   const chart = table.locator('svg.trace').first();
-  await expect(chart).toHaveAttribute('aria-label', /to 48,827 at 1,000,000,000 steps/);
-  await expect(chart).toHaveAttribute('aria-label', /\+33,373/);
-  await expect(chart.locator('circle')).toHaveCount(7);
+  await expect(chart).toHaveAttribute('aria-label', /to 154,330 at 10,000,000,000 steps/);
+  await expect(chart).toHaveAttribute('aria-label', /\+105,503/);
+  // Seven samples from the producer's own run, and one hollow point only the mirror reaches.
+  await expect(chart.locator('circle')).toHaveCount(8);
+  await expect(chart.locator('circle[fill="none"]')).toHaveCount(1);
+  await expect(table).toContainText('The mirror carries the same walk to 10,000,000,000 steps');
+  await expect(table).toContainText('agrees with the product through 1,000,000,000 steps');
   await expect(page.locator('#cryptid-note')).toContainText('not evidence');
 });
 
