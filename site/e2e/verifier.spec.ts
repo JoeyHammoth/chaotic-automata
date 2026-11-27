@@ -62,6 +62,22 @@ test('a cryptid is shown with its string and without a verdict', async ({ page }
   await expect(growth.locator('rect[fill="none"]')).toHaveCount(1);
   await expect(table.locator('svg.growth')).toHaveCount(4);
   await expect(table).toContainText('span gained per decade');
+  // A pointer can read each bar's decade too, in the same words as the label.
+  await expect(growth.locator('rect title')).toHaveCount(7);
+  await expect(growth.locator('rect title').last()).toHaveText(
+    "+105,503 from 1,000,000,000 to 10,000,000,000 (the mirror's longer run)",
+  );
+  // The two charts sit side by side rather than stacking the cell taller.
+  const trace = table.locator('svg.trace').first();
+  const traceBox = await trace.boundingBox();
+  const growthBox = await growth.boundingBox();
+  expect(traceBox).not.toBeNull();
+  expect(growthBox).not.toBeNull();
+  expect(Math.abs((traceBox?.y ?? 0) - (growthBox?.y ?? 0))).toBeLessThan(5);
+  expect(growthBox?.x ?? 0).toBeGreaterThan((traceBox?.x ?? 0) + 100);
+  // The sentence starts below the charts rather than wrapping around them.
+  const proseBox = await table.locator('p.cryptid-run').first().boundingBox();
+  expect(proseBox?.y ?? 0).toBeGreaterThan((traceBox?.y ?? 0) + 40);
   await expect(page.locator('#cryptid-note')).toContainText('not evidence');
 });
 

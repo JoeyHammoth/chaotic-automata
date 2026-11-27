@@ -42,6 +42,22 @@ h2 {
   max-width: 70ch;
 }
 
+.charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.chart-figure {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.cryptid-run {
+  margin: 0;
+}
+
 .chart-caption {
   display: block;
   color: var(--muted);

@@ -10,6 +10,7 @@ import {
   cryptidTraceChart,
   cryptidTraceLine,
   formatSteps,
+  growthBarLine,
   residue,
   verdictBadge,
   type Cryptid,
@@ -229,6 +230,14 @@ describe('span gained per decade', () => {
     expect(chart.label).toContain('+1,524 from 1,000 to 1,000,000');
     expect(chart.label).toContain('+446 from 1,000,000 to 10,000,000,000');
     expect(chart.label).not.toContain('proved');
+  });
+
+  it('names one decade the same way in the label and in the bar', () => {
+    const bar = cryptidGrowthChart(cryptid({}).trace, ladder).bars[1]!;
+    expect(growthBarLine(bar)).toBe('+446 from 1,000,000 to 10,000,000,000');
+    expect(growthBarLine(bar)).toBe(
+      cryptidGrowthChart(cryptid({}).trace, ladder).label.split(', ')[1],
+    );
   });
 
   it('draws the product alone when the ladder is missing', () => {

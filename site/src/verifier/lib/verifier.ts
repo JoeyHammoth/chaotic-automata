@@ -346,6 +346,21 @@ export interface GrowthChart {
   label: string;
 }
 
+function formatSigned(value: number): string {
+  return `${value >= 0 ? '+' : '-'}${Math.abs(value).toLocaleString('en-US')}`;
+}
+
+/**
+ * One decade's gain in words: the chart's label, each bar's hover title and the unit tests all use
+ * this sentence, so a pointer, a screen reader and the paragraph cannot quote different numbers.
+ */
+export function growthBarLine(bar: Pick<GrowthBar, 'from' | 'to' | 'delta'>): string {
+  return (
+    `${formatSigned(bar.delta)} from ${bar.from.toLocaleString('en-US')} ` +
+    `to ${bar.to.toLocaleString('en-US')}`
+  );
+}
+
 /**
  * The span gained in each decade, as bars.
  *
@@ -384,19 +399,10 @@ export function cryptidGrowthChart(
       height: barHeight,
     };
   });
-  const signed = (value: number) =>
-    `${value >= 0 ? '+' : '-'}${Math.abs(value).toLocaleString('en-US')}`;
   const label =
     gains.length === 0
       ? `no decade to compare over ${trace.steps.toLocaleString('en-US')} steps`
-      : 'span gained per decade: ' +
-        gains
-          .map(
-            (gain) =>
-              `${signed(gain.delta)} from ${gain.from.toLocaleString('en-US')} ` +
-              `to ${gain.to.toLocaleString('en-US')}`,
-          )
-          .join(', ');
+      : 'span gained per decade: ' + gains.map(growthBarLine).join(', ');
   return { bars, maxDelta, label };
 }
 
