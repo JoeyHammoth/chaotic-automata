@@ -274,9 +274,12 @@ async function start(view: View): Promise<void> {
     { passive: false },
   );
 
-  let dragging: { x: number; y: number } | null = null;
+  // A tap runs the rule, a drag only pans. The page decides that from the pointer rather than from
+  // a click: a browser suppresses the click that follows a touch drag, so the first tap after a
+  // pan would otherwise do nothing, and a mouse drag that ends on the map would run a rule.
+  let dragging: { x: number; y: number; moved: boolean } | null = null;
   mapCanvas.addEventListener('pointerdown', (event) => {
-    dragging = { x: event.clientX, y: event.clientY };
+    dragging = { x: event.clientX, y: event.clientY, moved: false };
     mapCanvas.setPointerCapture(event.pointerId);
   });
   mapCanvas.addEventListener('pointermove', (event) => {
@@ -284,14 +287,24 @@ async function start(view: View): Promise<void> {
     const scale = mapCanvas.width / mapCanvas.getBoundingClientRect().width;
     const dx = (event.clientX - dragging.x) * scale;
     const dy = (event.clientY - dragging.y) * scale;
-    dragging = { x: event.clientX, y: event.clientY };
+    if (Math.hypot(dx, dy) >= 3 * scale) dragging.moved = true;
+    dragging.x = event.clientX;
+    dragging.y = event.clientY;
     move(panBy(camera, dx, dy, chart.width, chart.height));
   });
-  mapCanvas.addEventListener('pointerup', () => {
+  mapCanvas.addEventListener('pointerup', (event) => {
+    if (dragging && !dragging.moved) runRuleAt(event);
     dragging = null;
   });
-
+  mapCanvas.addEventListener('pointercancel', () => {
+    dragging = null;
+  });
   mapCanvas.addEventListener('click', (event) => {
+    // A screen reader or a script clicks without a pointer; pointer users are handled above.
+    if (event.detail === 0) runRuleAt(event);
+  });
+
+  function runRuleAt(event: PointerEvent): void {
     const rect = mapCanvas.getBoundingClientRect();
     const scale = mapCanvas.width / rect.width;
     const point = screenToChart(
@@ -303,7 +316,7 @@ async function start(view: View): Promise<void> {
     const y = Math.floor(point.y);
     if (x < 0 || y < 0 || x >= chart.width || y >= chart.height) return;
     void runRule(ruleAt(x, y), x, y);
-  });
+  }
 
   mapCanvas.addEventListener('keydown', (event) => {
     const step = 40;

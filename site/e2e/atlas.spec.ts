@@ -163,6 +163,50 @@ test('the URL restores the camera, layer and rule exactly', async ({ page }) => 
   await expect(page.locator('#rule-heading')).toHaveText('Run a rule');
 });
 
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('a finger pans the map once it is zoomed in, and a tap runs the rule', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    await page.locator('#atlas').scrollIntoViewIfNeeded();
+
+    // At 1× the whole 512×512 chart is visible, so the camera is clamped: a drag cannot move it.
+    // Zoom the way the page offers on a phone — the buttons — then drag by touch.
+    await page.click('#zoom-in');
+    await page.click('#zoom-in');
+    expect(Number(await page.evaluate(() => document.body.dataset.zoom))).toBeGreaterThan(2);
+
+    const box = await page.locator('#atlas').boundingBox();
+    if (!box) throw new Error('the map has no box');
+    const client = await page.context().newCDPSession(page);
+    const touch = (
+      type: 'touchStart' | 'touchMove' | 'touchEnd',
+      points: { x: number; y: number; id: number }[],
+    ) => client.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+
+    await touch('touchStart', [{ x, y, id: 1 }]);
+    for (let step = 1; step <= 5; step++) {
+      await touch('touchMove', [{ x: x - step * 14, y, id: 1 }]);
+    }
+    await touch('touchEnd', []);
+
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('x'), { timeout: 5_000 })
+      .not.toBeNull();
+    // Panning is not a tap: the drag must not also run the rule it ended over.
+    await expect(page.locator('#rule-status')).toContainText('click the map to run a rule');
+
+    await page.locator('#atlas').scrollIntoViewIfNeeded();
+    const tapped = await page.locator('#atlas').boundingBox();
+    if (!tapped) throw new Error('the map has no box');
+    await page.touchscreen.tap(tapped.x + tapped.width / 2, tapped.y + tapped.height / 2);
+    await expect(page.locator('#rule-status')).toContainText('seed 1');
+  });
+});
+
 test('the keyboard pans and zooms the map', async ({ page }) => {
   await page.goto('/?x=100&y=100&z=2');
   await settle(page);

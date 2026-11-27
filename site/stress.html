@@ -56,19 +56,21 @@
           ></canvas>
           <figcaption id="toom-caption">Steps until the bit is lost, by lattice.</figcaption>
         </figure>
-        <table class="data">
-          <caption id="toom-table-caption">
-            Median lifetime at the selected noise, per lattice.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">lattice</th>
-              <th scope="col">NEC (Toom)</th>
-              <th scope="col">4-neighbour majority</th>
-            </tr>
-          </thead>
-          <tbody id="toom-table"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="data">
+            <caption id="toom-table-caption">
+              Median lifetime at the selected noise, per lattice.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">lattice</th>
+                <th scope="col">NEC (Toom)</th>
+                <th scope="col">4-neighbour majority</th>
+              </tr>
+            </thead>
+            <tbody id="toom-table"></tbody>
+          </table>
+        </div>
         <div id="toom-claim" class="claim"></div>
       </section>
 
@@ -95,20 +97,22 @@
               Click the diagram to read a point.
             </p>
             <p id="dk-summary" class="status"></p>
-            <table class="data">
-              <caption>
-                Density decay at the directed-percolation point.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">L</th>
-                  <th scope="col">δ̂</th>
-                  <th scope="col">95% interval</th>
-                  <th scope="col">verdict</th>
-                </tr>
-              </thead>
-              <tbody id="dk-table"></tbody>
-            </table>
+            <div class="table-scroll">
+              <table class="data">
+                <caption>
+                  Density decay at the directed-percolation point.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">L</th>
+                    <th scope="col">δ̂</th>
+                    <th scope="col">95% interval</th>
+                    <th scope="col">verdict</th>
+                  </tr>
+                </thead>
+                <tbody id="dk-table"></tbody>
+              </table>
+            </div>
             <div id="dk-verdict" class="claim"></div>
           </div>
         </div>
@@ -144,20 +148,22 @@
           </figure>
           <div>
             <p id="tower-summary" class="readout" aria-live="polite"></p>
-            <table class="data">
-              <caption>
-                Error rate per level: the recursion and the same tower actually built.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">level</th>
-                  <th scope="col">nodes</th>
-                  <th scope="col">p (recursion)</th>
-                  <th scope="col">measured</th>
-                </tr>
-              </thead>
-              <tbody id="tower-table"></tbody>
-            </table>
+            <div class="table-scroll">
+              <table class="data">
+                <caption>
+                  Error rate per level: the recursion and the same tower actually built.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">level</th>
+                    <th scope="col">nodes</th>
+                    <th scope="col">p (recursion)</th>
+                    <th scope="col">measured</th>
+                  </tr>
+                </thead>
+                <tbody id="tower-table"></tbody>
+              </table>
+            </div>
             <p id="tower-claim" class="status"></p>
           </div>
         </div>

@@ -249,6 +249,11 @@ pre.certificate {
   overflow-wrap: anywhere;
 }
 
+/* The champion's machine string has no spaces and no break opportunity before a hyphen. */
+#champion {
+  overflow-wrap: anywhere;
+}
+
 .controls label {
   color: var(--muted);
 }
@@ -529,6 +534,12 @@ a {
   .phase {
     grid-template-columns: 1fr;
   }
+
+  /* Stacked, the column may not be as wide as a table's own width: a grid item defaults to its
+     content's min-content width, so the table's scroll box could never take effect. */
+  .phase > * {
+    min-width: 0;
+  }
 }
 
 input[type='range'] {
@@ -542,6 +553,13 @@ table.data {
   margin-top: 0.75rem;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* A table whose columns cannot all fit a phone keeps its own width and scrolls inside this box,
+   rather than pushing the page sideways or breaking words in half. Table semantics are untouched. */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 table.data caption {
