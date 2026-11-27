@@ -171,6 +171,26 @@ h2 {
   font-size: 0.9rem;
 }
 
+/*
+ * A select sizes itself to its longest option, and a machine string is long. Without this cap the
+ * control is wider than a phone and the whole page scrolls sideways. The certificate JSON is the
+ * same problem in a code block: it scrolls inside its own box rather than widening the page.
+ */
+.controls select {
+  max-width: 100%;
+  min-width: 0;
+}
+
+pre.certificate {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* A source URL has no spaces to break at, so a narrow screen needs permission to break it. */
+.claims li {
+  overflow-wrap: anywhere;
+}
+
 .controls label {
   color: var(--muted);
 }
