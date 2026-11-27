@@ -127,7 +127,12 @@ def test_rule_18_domain_is_regions_between_walls() -> None:
     found = claim(18)
     assert found is not None
     assert found.verified, "the claim is reproduced once it is read as a domain, not a row pattern"
-    assert not report.particles_measured, "tracks still need a filtered field, not just a tiling"
+    assert report.particles_measured, "the wall residue is a field, so its tracks are measured"
+    assert report.tracks, "rule 18's kinks are what the residue leaves standing"
+    assert len(report.tracks) < 2 * report.region_domain.rows, (
+        "a wall is an index between two cells, not a run of them: the field must not be a copy of "
+        "the mask"
+    )
 
 
 def test_shuffling_time_destroys_the_detected_domain() -> None:

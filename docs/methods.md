@@ -231,8 +231,17 @@ particle list rather than an invented one.
 
 **Particles need a domain to exist first.** Connected components of an unfiltered field are the
 chaotic sea: rule 30's raw field is one component 256 rows tall. A `Report` therefore reports tracks
-(lifetime and drift) only when it also has a domain to filter with, and reports none otherwise.
-Spatial periods and the collision table are #50.
+(lifetime and drift) only when it also has a domain to filter with, and reports none otherwise. Both
+detectors count: a periodic domain removes its fixed cells, a region domain leaves its wall columns
+and any broken forced cell, and `filtered_field` is the one function either half calls — a page that
+filtered differently from the headless report would be two answers to the same question.
+
+The tracks a region domain leaves are kinks, and most of them are short-lived. Over the 249 observed
+rows at 256 cells, seed 11, rule 18 gives 79 to 294 tracks depending on whether the mask marks one
+side of each wall or both (the page draws both, so the panel's figure is the larger one); 66 of them
+measure a period and two last eight rows or more. That is a field of tracks, not a particle claim:
+the claim is the null-calibrated `particle_count`, and rule 18 has to earn it against shuffled
+time. Spatial periods and the collision table are #50.
 
 **The Rule 90 oracle fixes its own geometry.** One cell on a 65-cell torus for 32 steps: cell `d` at
 time `t` is `C(t, (t+d)/2) mod 2` when `t+d` is even, and zero otherwise. A random row would test
