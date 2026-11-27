@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   certificateSummary,
   checkSummary,
+  cryptidLadderChart,
+  cryptidLadderLine,
   cryptidSummary,
   cryptidTraceChart,
   cryptidTraceLine,
@@ -10,6 +12,7 @@ import {
   residue,
   verdictBadge,
   type Cryptid,
+  type CryptidTrace,
   type Labelled,
   type Run,
 } from '../lib/verifier';
@@ -152,6 +155,51 @@ describe('cryptids', () => {
     // the open problem; the wording is the same because the claim is about the cap.
     const summary = cryptidSummary(cryptid({ verdict: 'halts', halted: true, steps: 12 }));
     expect(summary.proves).toContain('nothing about halting');
+  });
+});
+
+describe("the mirror's longer run", () => {
+  const ladder: CryptidTrace = {
+    halted: false,
+    steps: 10_000_000_000,
+    samples: [
+      ...cryptid({}).trace.samples,
+      { steps: 10_000_000_000, span: 2_000, drift: 1_500, delta: 446 },
+    ],
+  };
+
+  it('extends the chart one decade and marks the point only the mirror reaches', () => {
+    const chart = cryptidLadderChart(cryptid({}).trace, ladder);
+    expect(chart.points).toHaveLength(3);
+    expect(chart.points.filter((point) => point.mirror)).toHaveLength(1);
+    expect(chart.points[2]!.x).toBeGreaterThan(chart.points[1]!.x);
+    expect(chart.label).toContain('2,000 at 10,000,000,000');
+    expect(chart.label).toContain('mirror');
+    expect(chart.label).toContain('agrees with the product through 1,000,000 steps');
+    expect(chart.label).not.toContain('proved');
+  });
+
+  it('draws the product alone when the ladder is missing', () => {
+    const chart = cryptidLadderChart(cryptid({}).trace, undefined);
+    expect(chart.points).toHaveLength(2);
+    expect(chart.points.every((point) => point.mirror !== true)).toBe(true);
+    expect(chart.label).not.toContain('mirror');
+  });
+
+  it('says how much the last decade gained, and which run it belongs to', () => {
+    const line = cryptidLadderLine(cryptid({}).trace, ladder);
+    expect(line).toContain('10,000,000,000');
+    expect(line).toContain('2,000');
+    expect(line).toContain('+446');
+    expect(line).toContain('agrees with the product through 1,000,000 steps');
+    expect(line).not.toContain('proved');
+  });
+
+  it('does not turn a halt inside the longer budget into a verdict about the machine', () => {
+    const line = cryptidLadderLine(cryptid({}).trace, { halted: true, steps: 5_000, samples: [] });
+    expect(line).toContain('halted');
+    expect(line).toContain('past the product');
+    expect(line).not.toContain('proved');
   });
 });
 

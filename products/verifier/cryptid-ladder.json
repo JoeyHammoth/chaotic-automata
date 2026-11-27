@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "generated_by": "crates/ca-cryptid",
+  "command": "cargo run -p ca-cryptid --release -- --machine <string> --steps 10000000000",
+  "steps": 10000000000,
+  "samples": [
+    1000,
+    10000,
+    100000,
+    1000000,
+    10000000,
+    100000000,
+    1000000000,
+    10000000000
+  ],
+  "machines": [
+    {
+      "name": "Bigfoot",
+      "string": "0RB1RB_1LC0RA_1RE1LF_1LF1RE_0RD1RD_1LG0LG_---1LB",
+      "halted": false,
+      "steps": 10000000000,
+      "samples": [
+        {
+          "steps": 1000,
+          "span": 54,
+          "drift": 50,
+          "delta": 54
+        },
+        {
+          "steps": 10000,
+          "span": 159,
+          "drift": 80,
+          "delta": 105
+        },
+        {
+          "steps": 100000,
+          "span": 498,
+          "drift": 424,
+          "delta": 339
+        },
+        {
+          "steps": 1000000,
+          "span": 1554,
+          "drift": 1038,
+          "delta": 1056
+        },
+        {
+          "steps": 10000000,
+          "span": 4894,
+          "drift": 4670,
+          "delta": 3340
+        },
+        {
+          "steps": 100000000,
+          "span": 15454,
+          "drift": 8036,
+          "delta": 10560
+        },
+        {
+          "steps": 1000000000,
+          "span": 48827,
+          "drift": 7040,
+          "delta": 33373
+        },
+        {
+          "steps": 10000000000,
+          "span": 154330,
+          "drift": 101286,
+          "delta": 105503
+        }
+      ]
+    },
+    {
+      "name": "Antihydra",
+      "string": "1RB1RA_0LC1LE_1LD1LC_1LA0LB_1LF1RE_---0RA",
+      "halted": false,
+      "steps": 10000000000,
+      "samples": [
+        {
+          "steps": 1000,
+          "span": 47,
+          "drift": 33,
+          "delta": 47
+        },
+        {
+          "steps": 10000,
+          "span": 137,
+          "drift": 15,
+          "delta": 90
+        },
+        {
+          "steps": 100000,
+          "span": 434,
+          "drift": 93,
+          "delta": 297
+        },
+        {
+          "steps": 1000000,
+          "span": 1383,
+          "drift": 632,
+          "delta": 949
+        },
+        {
+          "steps": 10000000,
+          "span": 4433,
+          "drift": 2855,
+          "delta": 3050
+        },
+        {
+          "steps": 100000000,
+          "span": 14148,
+          "drift": 9341,
+          "delta": 9715
+        },
+        {
+          "steps": 1000000000,
+          "span": 44298,
+          "drift": 33102,
+          "delta": 30150
+        },
+        {
+          "steps": 10000000000,
+          "span": 130407,
+          "drift": 77911,
+          "delta": 86109
+        }
+      ]
+    },
+    {
+      "name": "Lucy's Moonlight",
+      "string": "1RB0RD_0RC1RE_1RD0LA_1LE1LC_1RF0LD_---0RA",
+      "halted": false,
+      "steps": 10000000000,
+      "samples": [
+        {
+          "steps": 1000,
+          "span": 61,
+          "drift": 23,
+          "delta": 61
+        },
+        {
+          "steps": 10000,
+          "span": 261,
+          "drift": 163,
+          "delta": 200
+        },
+        {
+          "steps": 100000,
+          "span": 748,
+          "drift": 743,
+          "delta": 487
+        },
+        {
+          "steps": 1000000,
+          "span": 2220,
+          "drift": 129,
+          "delta": 1472
+        },
+        {
+          "steps": 10000000,
+          "span": 7924,
+          "drift": 7633,
+          "delta": 5704
+        },
+        {
+          "steps": 100000000,
+          "span": 25756,
+          "drift": 16615,
+          "delta": 17832
+        },
+        {
+          "steps": 1000000000,
+          "span": 105360,
+          "drift": 94439,
+          "delta": 79604
+        },
+        {
+          "steps": 10000000000,
+          "span": 280927,
+          "drift": 231703,
+          "delta": 175567
+        }
+      ]
+    },
+    {
+      "name": "Space Needle",
+      "string": "1RB1LA_1LC0RE_1LF1LD_0RB0LA_1RC1RE_---0LD",
+      "halted": false,
+      "steps": 10000000000,
+      "samples": [
+        {
+          "steps": 1000,
+          "span": 25,
+          "drift": 4,
+          "delta": 25
+        },
+        {
+          "steps": 10000,
+          "span": 62,
+          "drift": 17,
+          "delta": 37
+        },
+        {
+          "steps": 100000,
+          "span": 151,
+          "drift": 94,
+          "delta": 89
+        },
+        {
+          "steps": 1000000,
+          "span": 304,
+          "drift": 69,
+          "delta": 153
+        },
+        {
+          "steps": 10000000,
+          "span": 803,
+          "drift": 194,
+          "delta": 499
+        },
+        {
+          "steps": 100000000,
+          "span": 1663,
+          "drift": 334,
+          "delta": 860
+        },
+        {
+          "steps": 1000000000,
+          "span": 3248,
+          "drift": 825,
+          "delta": 1585
+        },
+        {
+          "steps": 10000000000,
+          "span": 6264,
+          "drift": 819,
+          "delta": 3016
+        }
+      ]
+    }
+  ]
+}

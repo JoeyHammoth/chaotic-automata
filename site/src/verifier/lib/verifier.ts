@@ -75,6 +75,26 @@ export interface CryptidTrace {
   samples: CryptidSample[];
 }
 
+/** One machine in the mirror's longer run, from `python -m computation_atlas.cryptid_ladder`. */
+export interface LadderMachine extends CryptidTrace {
+  name: string;
+  string: string;
+}
+
+/**
+ * The 10^10 ladder: the same four walks one decade past the product's budget, run by
+ * `crates/ca-cryptid`. It sits beside the product and never replaces it — the producer's own 10^9
+ * samples are what the chart's solid points are.
+ */
+export interface CryptidLadder {
+  version: number;
+  generated_by: string;
+  command: string;
+  steps: number;
+  samples: number[];
+  machines: LadderMachine[];
+}
+
 export interface Cryptid {
   name: string;
   string: string;
@@ -165,11 +185,37 @@ export function cryptidTraceLine(trace: CryptidTrace): string {
   return `no halt in ${steps} steps; span ${points}`;
 }
 
+/**
+ * What the longer run adds: one decade, and the span gained in it. Worded so a reader cannot take the
+ * mirror's run for a verdict, or the product's 10^9 for the whole of it.
+ */
+export function cryptidLadderLine(trace: CryptidTrace, ladder: CryptidTrace): string {
+  if (ladder.halted) {
+    return (
+      `The mirror halted it at step ${ladder.steps.toLocaleString('en-US')}, ` +
+      `past the product's budget`
+    );
+  }
+  const last = ladder.samples[ladder.samples.length - 1];
+  if (last === undefined) {
+    return `The mirror walked ${ladder.steps.toLocaleString('en-US')} steps and recorded no growth`;
+  }
+  const previous = ladder.samples[ladder.samples.length - 2];
+  const delta = last.delta ?? last.span - (previous?.span ?? 0);
+  return (
+    `The mirror carries the same walk to ${last.steps.toLocaleString('en-US')} steps — span ` +
+    `${last.span.toLocaleString('en-US')}, +${delta.toLocaleString('en-US')} in the last decade — ` +
+    `and agrees with the product through ${trace.steps.toLocaleString('en-US')} steps`
+  );
+}
+
 export interface TracePoint {
   x: number;
   y: number;
   steps: number;
   span: number;
+  /** True when only the mirror's longer run reaches this point. */
+  mirror?: boolean;
 }
 
 export interface TraceChart {
@@ -180,28 +226,43 @@ export interface TraceChart {
 }
 
 /**
- * Geometry for a cryptid's growth chart: steps across on a log axis, span up.
+ * Steps across on a log axis, span up.
  *
  * A log axis is the honest one — the samples are decades apart, so on a linear axis all but the
  * last two points pile up against the left edge. The chart carries its numbers in an aria-label and the
  * sentence stays beside it, so the picture is an addition to the words, never a replacement.
  */
-export function cryptidTraceChart(trace: CryptidTrace, width = 132, height = 44): TraceChart {
-  const samples = trace.samples.filter((sample) => sample.steps > 0);
-  const maxSpan = Math.max(1, ...samples.map((sample) => sample.span));
-  const first = samples[0];
-  const last = samples[samples.length - 1];
+function geometry(
+  samples: CryptidSample[],
+  width: number,
+  height: number,
+): {
+  points: TracePoint[];
+  maxSpan: number;
+  first: CryptidSample | undefined;
+  last: CryptidSample | undefined;
+} {
+  const usable = samples.filter((sample) => sample.steps > 0);
+  const maxSpan = Math.max(1, ...usable.map((sample) => sample.span));
+  const first = usable[0];
+  const last = usable[usable.length - 1];
   const low = Math.log10(first?.steps ?? 1);
   const high = Math.log10(last?.steps ?? 1);
   const decades = high - low || 1;
-  const points = samples.map((sample) => ({
+  const points = usable.map((sample) => ({
     x: 4 + ((Math.log10(sample.steps) - low) / decades) * (width - 8),
     y: height - 6 - (sample.span / maxSpan) * (height - 12),
     steps: sample.steps,
     span: sample.span,
   }));
-  // The steepest decade, so the picture says where the growth is and not only that there is some.
-  const fastest = samples.slice(1).reduce<{ from: number; to: number; delta: number } | null>(
+  return { points, maxSpan, first, last };
+}
+
+/** The steepest decade, so the picture says where the growth is and not only that there is some. */
+function fastestDecade(
+  samples: CryptidSample[],
+): { from: number; to: number; delta: number } | null {
+  return samples.slice(1).reduce<{ from: number; to: number; delta: number } | null>(
     (best, sample, index) => {
       const previous = samples[index] as CryptidSample;
       const delta = sample.delta ?? sample.span - previous.span;
@@ -211,17 +272,57 @@ export function cryptidTraceChart(trace: CryptidTrace, width = 132, height = 44)
     },
     null,
   );
-  const label =
-    first === undefined || last === undefined
-      ? `no growth recorded over ${trace.steps.toLocaleString('en-US')} steps`
-      : `span grows from ${first.span.toLocaleString('en-US')} cells at ` +
-        `${first.steps.toLocaleString('en-US')} steps to ${last.span.toLocaleString('en-US')} at ` +
-        `${last.steps.toLocaleString('en-US')} steps` +
-        (fastest === null || fastest.delta <= 0
-          ? ''
-          : `; the span grows fastest between ${fastest.from.toLocaleString('en-US')} and ` +
-            `${fastest.to.toLocaleString('en-US')} steps (+${fastest.delta.toLocaleString('en-US')})`);
+}
+
+function chartLabel(
+  first: CryptidSample | undefined,
+  last: CryptidSample | undefined,
+  fastest: { from: number; to: number; delta: number } | null,
+  steps: number,
+  extra = '',
+): string {
+  if (first === undefined || last === undefined) {
+    return `no growth recorded over ${steps.toLocaleString('en-US')} steps`;
+  }
+  return (
+    `span grows from ${first.span.toLocaleString('en-US')} cells at ` +
+    `${first.steps.toLocaleString('en-US')} steps to ${last.span.toLocaleString('en-US')} at ` +
+    `${last.steps.toLocaleString('en-US')} steps` +
+    extra +
+    (fastest === null || fastest.delta <= 0
+      ? ''
+      : `; the span grows fastest between ${fastest.from.toLocaleString('en-US')} and ` +
+        `${fastest.to.toLocaleString('en-US')} steps (+${fastest.delta.toLocaleString('en-US')})`)
+  );
+}
+
+export function cryptidTraceChart(trace: CryptidTrace, width = 132, height = 44): TraceChart {
+  const { points, maxSpan, first, last } = geometry(trace.samples, width, height);
+  const label = chartLabel(first, last, fastestDecade(trace.samples), trace.steps);
   return { points, maxSpan, label };
+}
+
+/**
+ * The product's chart with the mirror's decade added: its own samples as they are, then the point only
+ * the longer run reaches, flagged so the page can draw it hollow.
+ */
+export function cryptidLadderChart(
+  trace: CryptidTrace,
+  ladder: CryptidTrace | undefined,
+  width = 132,
+  height = 44,
+): TraceChart {
+  const product = trace.samples.filter((sample) => sample.steps > 0);
+  const beyond = (ladder?.samples ?? []).filter((sample) => sample.steps > trace.steps);
+  const samples = [...product, ...beyond];
+  const { points, maxSpan, first, last } = geometry(samples, width, height);
+  const mirrored = points.map((point, index) => ({ ...point, mirror: index >= product.length }));
+  const extra = beyond.length
+    ? `; the last point is the mirror's longer run, which agrees with the product through ` +
+      `${trace.steps.toLocaleString('en-US')} steps`
+    : '';
+  const label = chartLabel(first, last, fastestDecade(samples), trace.steps, extra);
+  return { points: mirrored, maxSpan, label };
 }
 
 export function formatSteps(steps: number | null): string {
@@ -263,4 +364,17 @@ export async function loadVerifier(
   const response = await fetchImpl(`${base}products/verifier/manifest.json`);
   if (!response.ok) throw new Error(`the verifier product is missing (${response.status})`);
   return (await response.json()) as VerifierProduct;
+}
+
+/**
+ * The longer run, if it is there. Its absence costs the page one sentence, not the product: the
+ * 10^9 chart is drawn either way.
+ */
+export async function loadLadder(
+  base: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<CryptidLadder | null> {
+  const response = await fetchImpl(`${base}products/verifier/cryptid-ladder.json`);
+  if (!response.ok) return null;
+  return (await response.json()) as CryptidLadder;
 }

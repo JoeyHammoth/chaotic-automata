@@ -5,9 +5,15 @@ per-transition cost, which is what lets the matched-decade ladder in `docs/metho
 10^10. A mirror is only worth having if it agrees with what it mirrors, so every sample it reports
 here is compared with the Python walk's own — the same numbers, not merely the same verdict.
 
-The budget is 10^6, the first four rungs of the product's ladder, because this test pays the Python
-producer's speed and not the tool's. The 10^9 agreement the ladder was taken after was checked by
-hand once; the range CI can afford is the part that keeps it true as both sides change.
+Two comparisons, at two budgets:
+
+* 10^6, live against the Python producer, in every differential run;
+* 10^9, live against the samples the producer wrote into the product, so the mirror is held to the
+  budget the page actually draws without paying twelve minutes of CPython per run.
+
+The committed ladder's agreement with the product is checked in `tests/test_verifier.py`, which
+needs no binary. None of this is a verdict: the longer run says the walk extends, not that these
+machines were decided.
 
 Needs ``cargo build -p ca-cryptid --release`` first, or ``CA_CRYPTID_BIN`` pointing at the binary.
 """
@@ -15,36 +21,24 @@ Needs ``cargo build -p ca-cryptid --release`` first, or ``CA_CRYPTID_BIN`` point
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 
 import pytest
 
-from computation_atlas import verifier
+from computation_atlas import cryptid_ladder, verifier
 
 pytestmark = pytest.mark.differential
 
 STEPS = 1_000_000
 SAMPLES = (1_000, 10_000, 100_000, 1_000_000)
-
-
-def find_binary() -> Path:
-    override = os.environ.get("CA_CRYPTID_BIN")
-    if override:
-        return Path(override)
-    for profile in ("release", "debug"):
-        for name in ("ca-cryptid.exe", "ca-cryptid"):
-            candidate = Path("target") / profile / name
-            if candidate.exists():
-                return candidate
-    raise FileNotFoundError("cargo build -p ca-cryptid --release")
+MANIFEST = Path("products/verifier/manifest.json")
 
 
 @pytest.fixture(scope="module")
 def binary() -> Path:
     try:
-        return find_binary()
+        return cryptid_ladder.find_binary()
     except FileNotFoundError as error:
         pytest.skip(str(error))
 
@@ -67,6 +61,15 @@ def run(binary: Path, machine: str, steps: int, samples=SAMPLES) -> dict:
     return json.loads(result.stdout)
 
 
+def recorded(path: Path, name: str) -> dict:
+    """One machine's walk as an artefact records it, whichever artefact it is."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    for entry in document.get("cryptids", document.get("machines", [])):
+        if entry["name"] == name:
+            return entry.get("trace", entry)
+    raise AssertionError(f"{name} is not in {path}")
+
+
 @pytest.mark.parametrize("entry", verifier.CRYPTIDS, ids=lambda entry: entry["name"])
 def test_the_mirror_reproduces_the_python_walk_sample_for_sample(binary: Path, entry: dict):
     trace = verifier.cryptid_trace(verifier.parse(entry["string"]), STEPS)
@@ -75,6 +78,24 @@ def test_the_mirror_reproduces_the_python_walk_sample_for_sample(binary: Path, e
     assert mirror["steps"] == STEPS
     assert mirror["samples"] == trace["samples"], (
         "the mirror and the producer disagree; the ladder is only as good as this equality"
+    )
+
+
+@pytest.mark.parametrize("entry", verifier.CRYPTIDS, ids=lambda entry: entry["name"])
+def test_the_mirror_reproduces_the_product_at_the_products_own_budget(binary: Path, entry: dict):
+    """The gap between 10^6 and the product's budget, closed without pretending CPython is free.
+
+    The product's samples at 10^9 are the Python producer's own, written by
+    `python -m computation_atlas.verifier` and held to `CRYPTID_STEPS` by `tests/test_verifier.py`.
+    Re-running them here would cost twelve minutes per test; comparing the mirror with what the
+    producer actually wrote costs a second of Rust and tests the same equality.
+    """
+    trace = recorded(MANIFEST, entry["name"])
+    assert trace["steps"] == verifier.CRYPTID_STEPS
+    mirror = run(binary, entry["string"], verifier.CRYPTID_STEPS, verifier.CRYPTID_SAMPLES)
+    assert mirror["halted"] is False
+    assert mirror["samples"] == trace["samples"], (
+        "the mirror disagrees with the product at the budget the page draws"
     )
 
 

@@ -643,8 +643,13 @@ before. It is the same statement about the walk at a larger budget, and still no
 The product's budget stays at 10^9, because that is what the Python producer writes and what
 `python -m computation_atlas.verifier` reproduces in about twelve minutes; the same ladder in CPython
 is eight hours, which is a run nobody will repeat to check a page. The 10^10 figures are the mirror's
-measurement and are labelled as such; what CI gates is that the mirror agrees with the producer, not
-that the ladder is long.
+measurement and are labelled as such. They are also a committed artefact —
+`products/verifier/cryptid-ladder.json`, written by `python -m computation_atlas.cryptid_ladder` from
+the machine strings in `verifier.CRYPTIDS` — so the page draws the producer's own 10^9 walk with the
+mirror's decade hollow at the end of it and says in each row which run is which. Three comparisons
+keep the two from drifting: the mirror against the Python walk at 10^6 in every differential run, the
+mirror against the product's recorded 10^9 samples, and the committed ladder against the committed
+product through 10^9. What CI gates is that agreement, not that the ladder is long.
 
 What is not claimed: the checker is a second implementation, not a proof, and it says only "this
 certificate replays". BB(5) is quoted from the paper, not re-proved here; the four-state sweep is
