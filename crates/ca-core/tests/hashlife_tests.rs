@@ -398,3 +398,96 @@ fn other_life_like_rules_run_through_the_same_path() {
         .collect();
     assert_eq!(life.pattern(), normalise(&expected));
 }
+
+// Golly 4.3's own output, captured with `bgolly -h -m <generation> -o <file>.mc <pattern>` and
+// committed unmodified. Golly is GPL-2.0-or-later and is used only as a black-box oracle: these are
+// text the test reads, never code it runs or links. docs/methods.md records the commands.
+const GOLLY_GLIDER_AT_4: &str = include_str!("golden/glider4.mc");
+const GOLLY_R_PENTOMINO_AT_1103: &str = include_str!("golden/rp1103.mc");
+const GOLLY_ACORN_AT_4096: &str = include_str!("golden/acorn4096.mc");
+
+/// The oracle is Golly, not this engine and not its reference: a published simulator's own output at
+/// generations no naive stepper would reach in a test.
+///
+/// The three cases are chosen for what they pin. A glider over one period catches a step that is
+/// right only for still lifes. The R-pentomino settles at generation 1103 with 116 cells, and acorn
+/// reaches 744 cells by generation 4096; both counts are what Golly printed while capturing, so the
+/// population claim is checked against an outside count rather than against the engine's own.
+///
+/// The generations stop at 4096 because beyond it acorn's spreading gliders make the pattern too
+/// large for a compressed step of the generations that remain, and the honest fallback is a sparse
+/// sweep of a million cells per generation — correct, but minutes of it in a debug build.
+#[test]
+fn golly_golden_generations_are_reproduced_cell_for_cell() {
+    let cases: [(&[&str], u64, &str, u64); 3] = [
+        (&[".#.", "..#", "###"], 4, GOLLY_GLIDER_AT_4, 5),
+        (&[".##", "##.", ".#."], 1_103, GOLLY_R_PENTOMINO_AT_1103, 116),
+        (&[".#.....", "...#...", "##..###"], 4_096, GOLLY_ACORN_AT_4096, 744),
+    ];
+    for (rows, generations, golden, population) in cases {
+        // A cap the golden runs fit rather than the helper's default: acorn's 4096 generations need
+        // more than 500k nodes, and running out of room would fail as a cap hit, not a wrong answer.
+        let (width, height, cells) = cells_from_rows(rows);
+        let mut life = HashLife::from_cells(Rule::life(), width, height, &cells, 8_000_000)
+            .expect("the pattern fits the cap");
+        life.step(generations).expect("the pattern steps");
+        assert_eq!(life.generation(), generations);
+
+        let oracle = HashLife::from_macrocell(golden, Rule::life(), 8_000_000)
+            .expect("Golly's macrocell is one this reader accepts");
+        assert_eq!(
+            oracle.generation(),
+            generations,
+            "the file records the generation it was saved at"
+        );
+        assert_eq!(
+            oracle.population(),
+            population,
+            "Golly's own count at generation {generations}"
+        );
+        assert_eq!(
+            life.population(),
+            population,
+            "population at generation {generations}"
+        );
+        assert_eq!(
+            life.pattern(),
+            oracle.pattern(),
+            "shape at generation {generations}"
+        );
+    }
+}
+
+/// A compressed step is only sound while the pattern has room to grow inside the centre half.
+///
+/// The R-pentomino is three cells wide, so on a level-3 root the old test — the pattern merely being
+/// somewhere inside the centre half — allowed a two-generation compressed step with the pattern
+/// flush against that half's edge, and the cells born outside it were dropped: five cells where the
+/// reference has seven. Two generations is the smallest window that shows it, and the reference
+/// stepper is the oracle.
+#[test]
+fn a_compressed_step_leaves_room_for_the_pattern_to_grow() {
+    let rule = Rule::life();
+    let rows = vec![".##", "##.", ".#."];
+    let (width, height, cells) = cells_from_rows(&rows);
+    let mut life = HashLife::from_cells(rule, width, height, &cells, 500_000).expect("fits");
+    life.step(2).expect("two generations");
+
+    let mut torus = reference(width, height, 8, &cells, rule);
+    torus.step(2);
+    let expected: Vec<(usize, usize)> = torus
+        .cells()
+        .iter()
+        .enumerate()
+        .filter(|(_, &cell)| cell == 1)
+        .map(|(index, _)| (index % torus.width(), index / torus.width()))
+        .collect();
+    let expected = normalise(&expected);
+
+    assert_eq!(
+        life.pattern(),
+        expected,
+        "two generations of the R-pentomino must not lose a cell to the edge"
+    );
+    assert_eq!(life.population(), expected.len() as u64);
+}

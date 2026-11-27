@@ -730,7 +730,21 @@ impl HashLife {
         self.intern(level, quads)
     }
 
-    /// Whether the live pattern fits inside the centre half of a level-`level` tree.
+    /// Whether a compressed step on a level-`level` tree can be taken without dropping a cell.
+    ///
+    /// `next_generation` returns the centre half of the root, so every live cell that ends up
+    /// outside that half is gone. The half is `2^(level-1)` cells wide and the step is `2^(level-2)`
+    /// generations, so the pattern must sit inside the half with room for its own growth: at Life's
+    /// c/2 speed limit a frontier covers `2^(level-3)` cells in that time, `2^(level-2)` of the
+    /// half's width for both sides of the pattern. Since `rebuild` centres the pattern inside the
+    /// centre half, that leaves `(half - width) / 2` cells of slack on each side, and the step is
+    /// safe when the pattern is no wider than the step itself.
+    ///
+    /// The weaker test — the pattern merely being somewhere inside the centre half — is not enough,
+    /// and was the bug the Golly goldens caught: acorn at generation 4608 is about a thousand cells
+    /// wide, it was stepped 512 generations inside a 2048 root, four escaping gliders crossed the
+    /// edge of the centre half and were dropped, and the population stayed twenty cells short from
+    /// generation 5120 on. The R-pentomino at two generations is the same bug in miniature.
     fn fits_at(&self, level: u32) -> bool {
         if level > MAX_LEVEL {
             return false;
@@ -738,8 +752,8 @@ impl HashLife {
         let Some((min_x, min_y, max_x, max_y)) = self.bbox() else {
             return true;
         };
-        let half = 1usize << (level - 1);
-        max_x - min_x < half && max_y - min_y < half
+        let room = 1usize << (level - 2);
+        max_x - min_x + 1 <= room && max_y - min_y + 1 <= room
     }
 
     fn bbox(&self) -> Option<(usize, usize, usize, usize)> {
@@ -807,8 +821,10 @@ impl HashLife {
         if width > size / 2 || height > size / 2 {
             return Err(HashLifeError::LevelOverflow { requested: level });
         }
-        let offset_x = (size - width) / 2;
-        let offset_y = (size - height) / 2;
+        // Centre the pattern inside the centre half, not the whole root: a compressed step's result
+        // is the centre half, and a pattern flush against its edge has nowhere to grow into.
+        let offset_x = size / 4 + (size / 2 - width) / 2;
+        let offset_y = size / 4 + (size / 2 - height) / 2;
         self.root = self.empty(level)?;
         for (x, y) in cells {
             let root = self.root;
@@ -817,7 +833,13 @@ impl HashLife {
         Ok(())
     }
 
-    /// One generation by sparse enumeration, for patterns too large for a compressed step.
+    /// One generation by dense enumeration, for patterns too large for a compressed step.
+    ///
+    /// The grid is the pattern's bounding box plus the one dead cell on every side where a birth can
+    /// land, and a second dead ring so a neighbour read never leaves the row. Counting is read from a
+    /// byte plane rather than a set of coordinates: this is the fallback that
+    /// a large pattern takes for every generation its size denies it a compressed step, and the set
+    /// version was slow enough to make a Golly golden take a minute in a debug build.
     fn step_sparse(&mut self) -> Result<(), HashLifeError> {
         let cells = self.live_cells();
         if cells.is_empty() {
@@ -829,55 +851,48 @@ impl HashLife {
             .fold((usize::MAX, usize::MAX), |(mx, my), &(x, y)| {
                 (mx.min(x), my.min(y))
             });
-        let live: std::collections::HashSet<(isize, isize)> = cells
+        let (max_x, max_y) = cells
             .iter()
-            .map(|&(x, y)| (x as isize - min_x as isize, y as isize - min_y as isize))
-            .collect();
-        let mut next: Vec<(isize, isize)> = Vec::new();
-        let mut candidates: std::collections::HashSet<(isize, isize)> =
-            std::collections::HashSet::new();
-        for &(x, y) in &live {
-            for dy in -1..=1 {
-                for dx in -1..=1 {
-                    candidates.insert((x + dx, y + dy));
-                }
+            .fold((0usize, 0usize), |(mx, my), &(x, y)| (mx.max(x), my.max(y)));
+        let width = max_x - min_x + 1;
+        let height = max_y - min_y + 1;
+        // Two cells of border: the pattern sits one cell in, the ring it can give birth to is
+        // computed, and the outermost ring stays dead so a neighbour read never leaves the row.
+        let stride = width + 4;
+        let rows = height + 4;
+        let mut current = vec![0u8; stride * rows];
+        for &(x, y) in &cells {
+            current[(y - min_y + 2) * stride + (x - min_x + 2)] = 1;
+        }
+        let mut next = vec![0u8; stride * rows];
+        for y in 1..=height + 2 {
+            for x in 1..=width + 2 {
+                let index = y * stride + x;
+                let neighbours = u32::from(
+                    current[index - stride - 1]
+                        + current[index - stride]
+                        + current[index - stride + 1]
+                        + current[index - 1]
+                        + current[index + 1]
+                        + current[index + stride - 1]
+                        + current[index + stride]
+                        + current[index + stride + 1],
+                );
+                next[index] = u8::from(self.rule.next_state(current[index] == 1, neighbours));
             }
         }
-        let mut sorted: Vec<(isize, isize)> = candidates.into_iter().collect();
-        sorted.sort_unstable();
-        for (x, y) in sorted {
-            let mut neighbours = 0;
-            for dy in -1..=1 {
-                for dx in -1..=1 {
-                    if dx == 0 && dy == 0 {
-                        continue;
-                    }
-                    if live.contains(&(x + dx, y + dy)) {
-                        neighbours += 1;
-                    }
-                }
-            }
-            let alive = live.contains(&(x, y));
-            if self.rule.next_state(alive, neighbours) {
-                next.push((x, y));
+
+        let mut born: Vec<(usize, usize)> = Vec::new();
+        for (offset, &alive) in next.iter().enumerate() {
+            if alive == 1 {
+                born.push((offset % stride, offset / stride));
             }
         }
-        // A birth can land one cell outside the old bounding box, so re-normalise before the
-        // conversion to unsigned coordinates.
-        let (min_x, min_y) = next
-            .iter()
-            .fold((isize::MAX, isize::MAX), |(mx, my), &(x, y)| {
-                (mx.min(x), my.min(y))
-            });
-        let cells: Vec<(usize, usize)> = next
-            .iter()
-            .map(|&(x, y)| ((x - min_x) as usize, (y - min_y) as usize))
-            .collect();
-        let width = cells.iter().map(|&(x, _)| x).max().map_or(1, |m| m + 1);
-        let height = cells.iter().map(|&(_, y)| y).max().map_or(1, |m| m + 1);
+        let width = born.iter().map(|&(x, _)| x).max().map_or(1, |m| m + 1);
+        let height = born.iter().map(|&(_, y)| y).max().map_or(1, |m| m + 1);
         let level = level_for(width.max(height))?;
         self.root = self.empty(level)?;
-        for (x, y) in cells {
+        for (x, y) in born {
             let root = self.root;
             self.root = self.with_cell(root, level, x, y)?;
         }
@@ -951,8 +966,10 @@ impl HashLife {
         self.index.clear();
         self.root = self.empty(level)?;
         let size = 1usize << level;
-        let offset_x = (size - width) / 2;
-        let offset_y = (size - height) / 2;
+        // Centre the pattern inside the centre half, not the whole root: a compressed step's result
+        // is the centre half, and a pattern flush against its edge has nowhere to grow into.
+        let offset_x = size / 4 + (size / 2 - width) / 2;
+        let offset_y = size / 4 + (size / 2 - height) / 2;
         for (x, y) in cells {
             let root = self.root;
             self.root = self.with_cell(root, level, offset_x + x - min_x, offset_y + y - min_y)?;
