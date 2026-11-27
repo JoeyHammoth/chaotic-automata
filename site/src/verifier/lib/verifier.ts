@@ -226,6 +226,17 @@ export interface TraceChart {
 }
 
 /**
+ * One trace point in words: the span at a step. The chart's label and each point's hover title both
+ * use this sentence, so a pointer and a reader get the same numbers.
+ */
+export function tracePointLine(point: Pick<TracePoint, 'steps' | 'span'>): string {
+  return (
+    `${point.span.toLocaleString('en-US')} cells at ` +
+    `${point.steps.toLocaleString('en-US')} steps`
+  );
+}
+
+/**
  * Steps across on a log axis, span up.
  *
  * A log axis is the honest one — the samples are decades apart, so on a linear axis all but the

@@ -13,6 +13,7 @@ import {
   formatSteps,
   growthBarLine,
   loadLadder,
+  tracePointLine,
   loadVerifier,
   residue,
   verdictBadge,
@@ -30,11 +31,38 @@ function element<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-function cell(text: string, scope?: 'row'): HTMLTableCellElement {
+function cell(text: string, scope?: 'row', label?: string): HTMLTableCellElement {
   const node = document.createElement(scope === 'row' ? 'th' : 'td');
   if (scope === 'row') node.scope = 'row';
+  if (label !== undefined) node.dataset.label = label;
   node.textContent = text;
   return node;
+}
+
+/**
+ * Which run a chart element belongs to, in words. The bars and points say it the same way.
+ */
+function runLabel(mirror: boolean): string {
+  return mirror ? "the mirror's longer run" : "the product's own samples";
+}
+
+/**
+ * The narrow layout stacks each row into a card, which drops the table semantics HTML gives those
+ * elements. Explicit roles put them back, so a screen reader still hears a table with headers and
+ * cells rather than a list of blocks.
+ */
+function keepTableSemantics(): void {
+  for (const table of document.querySelectorAll<HTMLTableElement>('table.data')) {
+    table.setAttribute('role', 'table');
+    for (const group of table.querySelectorAll('thead, tbody')) {
+      group.setAttribute('role', 'rowgroup');
+    }
+    for (const row of table.querySelectorAll('tr')) row.setAttribute('role', 'row');
+    for (const header of table.querySelectorAll('th')) {
+      header.setAttribute('role', header.scope === 'row' ? 'rowheader' : 'columnheader');
+    }
+    for (const data of table.querySelectorAll('td')) data.setAttribute('role', 'cell');
+  }
 }
 
 function renderResidue(product: VerifierProduct): void {
@@ -55,13 +83,17 @@ function renderBb(product: VerifierProduct): void {
     const row = document.createElement('tr');
     row.append(
       cell(String(run.states), 'row'),
-      cell(run.quoted === null ? '—' : run.quoted.toLocaleString('en-US')),
-      cell(run.reproduced === null ? '—' : run.reproduced.toLocaleString('en-US')),
-      cell(run.machines.toLocaleString('en-US')),
-      cell(run.halting.toLocaleString('en-US')),
-      cell(run.certified.toLocaleString('en-US')),
-      cell(run.heuristic.toLocaleString('en-US')),
-      cell(run.undecided.toLocaleString('en-US')),
+      cell(run.quoted === null ? '—' : run.quoted.toLocaleString('en-US'), undefined, 'S(n) quoted'),
+      cell(
+        run.reproduced === null ? '—' : run.reproduced.toLocaleString('en-US'),
+        undefined,
+        'reproduced',
+      ),
+      cell(run.machines.toLocaleString('en-US'), undefined, 'machines'),
+      cell(run.halting.toLocaleString('en-US'), undefined, 'halts'),
+      cell(run.certified.toLocaleString('en-US'), undefined, 'certified'),
+      cell(run.heuristic.toLocaleString('en-US'), undefined, 'heuristic'),
+      cell(run.undecided.toLocaleString('en-US'), undefined, 'undecided'),
     );
     body.append(row);
   }
@@ -85,13 +117,14 @@ function renderLabelled(product: VerifierProduct): void {
     machine.append(document.createTextNode(entry.string));
     const klass = document.createElement('td');
     klass.className = `badge ${badge.className}`;
+    klass.dataset.label = 'class';
     klass.textContent = `${badge.symbol} ${badge.text}`;
     row.append(
       machine,
-      cell(String(entry.states)),
+      cell(String(entry.states), undefined, 'states'),
       klass,
-      cell(formatSteps(entry.steps)),
-      cell(checkSummary(entry)),
+      cell(formatSteps(entry.steps), undefined, 'steps'),
+      cell(checkSummary(entry), undefined, 'checker'),
     );
     body.append(row);
   }
@@ -154,6 +187,9 @@ function traceChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement {
     dot.setAttribute('cy', point.y.toFixed(1));
     dot.setAttribute('r', '1.8');
     markOutOfProduct(dot, point.mirror === true);
+    const title = document.createElementNS(SVG, 'title');
+    title.textContent = `${tracePointLine(point)} (${runLabel(point.mirror === true)})`;
+    dot.append(title);
     svg.append(dot);
   }
   return svg;
@@ -175,8 +211,7 @@ function growthChart(trace: CryptidTrace, ladder?: CryptidTrace): SVGSVGElement 
     markOutOfProduct(rect, bar.mirror);
     // A pointer can read the same sentence the label carries, without a screen reader.
     const title = document.createElementNS(SVG, 'title');
-    const run = bar.mirror ? "the mirror's longer run" : "the product's own samples";
-    title.textContent = `${growthBarLine(bar)} (${run})`;
+    title.textContent = `${growthBarLine(bar)} (${runLabel(bar.mirror)})`;
     rect.append(title);
     svg.append(rect);
   }
@@ -202,6 +237,7 @@ function renderCryptids(product: VerifierProduct, ladder: CryptidLadder | null):
     name.textContent = cryptid.name;
     const machine = document.createElement('td');
     machine.className = 'certificate';
+    machine.dataset.label = 'machine';
     machine.textContent = cryptid.string;
     const mine = document.createElement('td');
     const charts = document.createElement('div');
@@ -216,11 +252,12 @@ function renderCryptids(product: VerifierProduct, ladder: CryptidLadder | null):
       `${summary.verdict} — ${summary.proves}. ${cryptidTraceLine(cryptid.trace)}.` +
       (longer === undefined ? '' : ` ${cryptidLadderLine(cryptid.trace, longer)}.`);
     mine.append(charts, prose);
+    mine.dataset.label = 'this pipeline';
     row.append(
       name,
-      cell(cryptid.domain),
+      cell(cryptid.domain, undefined, 'domain'),
       machine,
-      cell(`${cryptid.claim} (${cryptid.found})`),
+      cell(`${cryptid.claim} (${cryptid.found})`, undefined, 'the wiki says'),
       mine,
     );
     body.append(row);
@@ -253,8 +290,8 @@ function renderCertificate(product: VerifierProduct, entry: Labelled): void {
     const row = document.createElement('tr');
     row.append(
       cell(mutation.label, 'row'),
-      cell(mutation.accepted ? 'accepted' : 'refused'),
-      cell(mutation.reason),
+      cell(mutation.accepted ? 'accepted' : 'refused', undefined, 'checker'),
+      cell(mutation.reason, undefined, 'reason'),
     );
     body.append(row);
   }
@@ -290,6 +327,7 @@ function render(product: VerifierProduct, ladder: CryptidLadder | null): void {
   });
   const first = product.labelled[0];
   if (first !== undefined) renderCertificate(product, first);
+  keepTableSemantics();
   element('status').textContent =
     `product v${product.version}, seed ${product.seed}, cap ${product.cap} steps, ` +
     `fingerprints every ${product.check_every} steps` +

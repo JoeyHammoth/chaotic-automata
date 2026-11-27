@@ -12,6 +12,7 @@ import {
   formatSteps,
   growthBarLine,
   residue,
+  tracePointLine,
   verdictBadge,
   type Cryptid,
   type CryptidTrace,
@@ -135,6 +136,13 @@ describe('cryptids', () => {
     expect(chart.points[0]!.y).toBeGreaterThan(chart.points[1]!.y);
     expect(chart.label).toContain('1,554 at 1,000,000');
     expect(chart.label).not.toContain('proved');
+  });
+
+  it('names a trace point the way its hover title does', () => {
+    expect(tracePointLine({ steps: 1_000, span: 54 })).toBe('54 cells at 1,000 steps');
+    expect(tracePointLine({ steps: 10_000_000_000, span: 154_330 })).toBe(
+      '154,330 cells at 10,000,000,000 steps',
+    );
   });
 
   it('reports the long run as growth rather than as a verdict', () => {
