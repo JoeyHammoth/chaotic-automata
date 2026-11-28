@@ -11,6 +11,23 @@ export interface Camera {
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 32;
 
+/**
+ * The zoom at which the whole chart fits the viewport, in viewport pixels per cell.
+ *
+ * The map draws from the top-left of the canvas, so a frame the same shape as the chart fills
+ * exactly when the camera starts at this zoom. The short side is the constraint, which is why the
+ * frame is square: a wide frame would fit the chart vertically and leave the rest as background.
+ */
+export function fitZoom(
+  viewportWidth: number,
+  viewportHeight: number,
+  chartWidth: number,
+  chartHeight: number,
+): number {
+  const fit = Math.min(viewportWidth / chartWidth, viewportHeight / chartHeight);
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, fit));
+}
+
 export function clampCamera(camera: Camera, chartWidth: number, chartHeight: number): Camera {
   const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, camera.zoom));
   const visibleWidth = Math.min(chartWidth, 1 / zoom);
