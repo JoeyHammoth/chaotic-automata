@@ -17,6 +17,10 @@ effort, and there is no service-level promise.
 GitHub Discussions are not enabled; issues are the single queue, so a question and its answer stay
 searchable in one place.
 
+Before filing, [`docs/troubleshooting.md`](docs/troubleshooting.md) may already answer it: it covers
+hatched rules, a `cpu` tier, a refused rule, a page that 404s only on Pages, and the checks that need
+a built engine.
+
 ## What to include
 
 - **Which page**: the URL of the page, including any `?rule=` parameters, or the commit you built.
