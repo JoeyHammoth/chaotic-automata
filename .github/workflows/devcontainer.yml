@@ -1,0 +1,59 @@
+name: Devcontainer
+
+# The container is how a newcomer is told to run the checks, so it is built and the checks are run
+# inside it. The paths filter keeps that cost off ordinary changes: this job only runs when the
+# container itself, or something it installs, changes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".devcontainer/**"
+      - ".github/workflows/devcontainer.yml"
+      - "pyproject.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "site/package.json"
+      - "site/package-lock.json"
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - ".github/workflows/devcontainer.yml"
+      - "pyproject.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "site/package.json"
+      - "site/package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devcontainer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  container:
+    name: Build the dev container and run the checks inside it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-tags: true
+      - uses: devcontainers/ci@v0.3
+        with:
+          push: never
+          runCmd: |
+            set -euo pipefail
+            echo "python $(python --version 2>&1) · node $(node --version) · $(cargo --version)"
+            rustup target list --installed | grep -q wasm32-unknown-unknown
+            ruff check .
+            python scripts/check_doc_links.py
+            python scripts/check_citation.py
+            pytest -m "not differential and not sweep"
+            cargo test --workspace
+            npm --prefix site run build:wasm
+            npm --prefix site run typecheck
+            npm --prefix site test
+            npm --prefix site run e2e
