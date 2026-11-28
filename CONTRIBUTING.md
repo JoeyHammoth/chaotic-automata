@@ -66,6 +66,19 @@ npm run build
 The differential and sweep tests need a release build of their binary; the commands are at the end of
 this file, and they are the only checks with a prerequisite beyond the toolchains above.
 
+### In a Codespace
+
+`.devcontainer/devcontainer.json` installs Python 3.12, Node 22 and a stable Rust toolchain with the
+`wasm32-unknown-unknown` target, adds a Chromium for Playwright, and runs `pip install -e ".[dev]"`
+and `npm ci` in `site/` when the container is created. Open the repository in a
+[Codespace](https://codespaces.new/JoeyHammoth/chaotic-automata) — or in a local dev container — and
+the commands above work as written. The default 2-core machine is enough: the first
+`cargo test --workspace` is slow rather than memory-hungry.
+
+What it does not include, so the container cannot pretend otherwise: Golly, and the release builds of
+`ca-diff` and `ca-sweep` that the differential and sweep tests need. Build those as
+[Differential harness](#differential-harness) describes, in the container or outside it.
+
 ## Code of conduct and security
 
 Participation is covered by [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md); reports go through a private
