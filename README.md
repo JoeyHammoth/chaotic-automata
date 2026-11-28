@@ -26,6 +26,13 @@ character. Any point can be run live, and opened in instruments that look *insid
 and particles, a HashLife zoom where Life runs inside Life, and a noise lab where reliable
 computation either survives or dies.
 
+One rule at a time, the [Inspector](https://joeyhammoth.github.io/chaotic-automata/inspector.html)
+shows the raw spacetime, the cells its inferred domain does not explain, the local statistical
+complexity, and a twin replica that differs by a single cell. This is rule 18, one of the anchors
+[`docs/methods.md`](docs/methods.md) verifies:
+
+![The Inspector on rule 18: raw spacetime, the domain residue, local statistical complexity and a twin replica that differs by one cell](docs/assets/inspector.png)
+
 | | |
 |---|---|
 | **Status** | The atlas is live: a 512×512 map of rule space with class and metric colourings, hatching for undecided rules, a disagreement layer, landmark labels and click-to-run. Data comes from the full sweep: 24 warm steps, 300 observed steps, a 300-step period cap and six seeds per rule, the same budgets as the 64x64 sample; 75.8% of rules stay undecided there and the map hatches them. |
