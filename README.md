@@ -3,6 +3,23 @@
 **A navigable map of the space of simple programs** — showing where order ends, chaos begins, and
 computation lives in between.
 
+[![CI](https://github.com/JoeyHammoth/chaotic-automata/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JoeyHammoth/chaotic-automata/actions/workflows/ci.yml)
+[![Pages](https://github.com/JoeyHammoth/chaotic-automata/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/JoeyHammoth/chaotic-automata/actions/workflows/pages.yml)
+[![License: MIT](https://img.shields.io/github/license/JoeyHammoth/chaotic-automata)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)](pyproject.toml)
+
+**[Open the atlas →](https://joeyhammoth.github.io/chaotic-automata/)** — no install, no account, no
+server. The same build serves five pages: the [Atlas](https://joeyhammoth.github.io/chaotic-automata/),
+the [Inspector](https://joeyhammoth.github.io/chaotic-automata/inspector.html), the
+[Stress Lab](https://joeyhammoth.github.io/chaotic-automata/stress.html), the
+[Verifier](https://joeyhammoth.github.io/chaotic-automata/verifier.html) and the
+[HashLife zoom](https://joeyhammoth.github.io/chaotic-automata/hashlife.html).
+
+![The Inspector on rule 18: raw spacetime, the domain residue, local statistical complexity and a twin replica](docs/assets/inspector.png)
+
+*The deployed Inspector on rule 18 — one of the committed panels under
+[`products/inspector/`](products/inspector/).*
+
 Every pixel of the atlas is a different cellular automaton, coloured by what it *does* (frozen,
 periodic, chaotic, capable of computation), with visible "coastlines" where behaviour changes
 character. Any point can be run live, and opened in instruments that look *inside* the rule: domains
@@ -32,6 +49,20 @@ computation either survives or dies.
    validation suite against published results, differential testing (GPU vs CPU vs reference), and
    CI-driven static deployment.
 4. **The chart is the interface.** The hero is the live atlas.
+
+## Why this, and not Golly, a notebook, or CAX?
+
+- **Golly** is the mature, far faster tool for exploring Life patterns, and it is the right one for
+  that job. This asks a different question: what all 262,144 Life-like rules do at once, as one map
+  measured the same way at every pixel. Golly is also GPL, so it appears here only as a black-box
+  oracle in tests, never as linked code.
+- **A notebook** is better for a one-off experiment. It is worse at what this project is for: a
+  figure that carries its rule, seed and version, and a link that restores the view exactly.
+- **CAX** is a better starting point if you want to train or search rules on a GPU. This is a
+  read-only atlas of measured behaviour, not a differentiable simulator.
+
+What it cannot show is stated plainly in [`docs/limitations.md`](docs/limitations.md) rather than left
+for a visitor to discover.
 
 ## Modules
 
@@ -67,11 +98,12 @@ docs/
   research/design-doc-review.md        # citation verification and gap analysis
   adr/                                 # architecture decision records
   agents/                              # issue tracker, triage labels, domain doc rules
-.agents/skills/                        # local engineering skills used by coding agents
-.github/workflows/                     # CI
+scripts/                               # repository checks (docs links)
+products/                              # committed data products the site reads
+.github/workflows/                     # CI and Pages
 ```
 
-## Getting started
+## Run it locally
 
 Python 3.11+ is required for the offline pipeline.
 
@@ -131,6 +163,7 @@ It writes plots into `Grids/`, `Histograms/`, `Line_Plots/` and `Log_Plots/`.
 | [`AGENTS.md`](AGENTS.md) | Instructions for coding agents |
 | [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Expected behaviour, and the private reporting route |
 | [`SECURITY.md`](SECURITY.md) | Supported versions and how to report a vulnerability |
+| [`SUPPORT.md`](SUPPORT.md) | Where to ask a question, and where not to |
 | [`CITATION.cff`](CITATION.cff) | How to cite the software and its data products |
 
 ## Primary references
@@ -149,6 +182,24 @@ It writes plots into `Grids/`, `Histograms/`, `Line_Plots/` and `Log_Plots/`.
   [arXiv:2412.19803](https://arxiv.org/abs/2412.19803), Quantum **10**, 2125 (2026)
 - Dünnweber, Styliaris, Trivedi, *Quantum Memory and Autonomous Computation in Two Dimensions* —
   [arXiv:2601.20818](https://arxiv.org/abs/2601.20818)
+
+## Contributing
+
+Every change starts from an issue; [`CONTRIBUTING.md`](CONTRIBUTING.md) has the branch, commit and
+pull-request workflow and the check each toolchain runs. Work that suits a first-time contributor is
+labelled [`good first issue`](https://github.com/JoeyHammoth/chaotic-automata/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
+and [`help wanted`](https://github.com/JoeyHammoth/chaotic-automata/issues?q=is%3Aopen+label%3A%22help+wanted%22);
+each one states the expected outcome, where the relevant code lives, and how to check the result.
+There is no CLA to sign.
+
+This is a single-maintainer project, so issues and pull requests are answered on a best-effort basis
+with no service-level promise. If something has gone quiet, a polite ping is welcome.
+
+## Support
+
+Questions and bug reports go to [Issues](https://github.com/JoeyHammoth/chaotic-automata/issues);
+[`SUPPORT.md`](SUPPORT.md) says which route fits. A suspected vulnerability goes through private
+reporting, never a public issue — see [`SECURITY.md`](SECURITY.md).
 
 ## License
 

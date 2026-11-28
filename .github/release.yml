@@ -1,0 +1,14 @@
+# Grouping for `gh release create --generate-notes`. Categories list only labels this repository
+# already applies, so a generated draft needs editing for prose, not for empty headings.
+changelog:
+  categories:
+    - title: New behaviour
+      labels: ["kind:feature", "enhancement"]
+    - title: Fixes
+      labels: ["bug"]
+    - title: Documentation
+      labels: ["kind:docs", "documentation"]
+    - title: Infrastructure and dependencies
+      labels: ["kind:infra", "github_actions", "dependencies"]
+    - title: Everything else
+      labels: ["*"]

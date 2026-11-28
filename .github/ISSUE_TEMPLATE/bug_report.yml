@@ -1,0 +1,66 @@
+name: Bug report
+description: Something is broken — a page, a data product, a build step or a test.
+title: "bug: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please search the open issues first — a duplicate is easier to answer
+        on the original thread.
+
+        A bug is a **wrong behaviour**, not a wrong result: a misstated constant or a class that looks
+        wrong is a scientific error, and `CONTRIBUTING.md` says how to report one.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: One or two sentences. What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: >-
+        The shortest path that shows the problem: a page URL with its `?rule=` parameters, a command,
+        or a failing test name. A reproducer that runs in ten seconds gets answered first.
+      placeholder: |
+        1. Open https://joeyhammoth.github.io/chaotic-automata/inspector.html?rule=18
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where does it happen?
+      options:
+        - The deployed site (GitHub Pages)
+        - A local site build (`site/`)
+        - The Python pipeline (`src/computation_atlas/`)
+        - The Rust engines (`crates/`)
+        - CI or the workflows
+        - Documentation only
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: >-
+        The commit SHA you built, the date you saw it on the deployed site, or the `pipeline_version`
+        the page shows. "Latest `main`" is fine if you cannot pin it.
+      placeholder: e.g. a0792e1, or 2026-11-28 on the deployed site
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and version for the site; OS, Python, Node and Rust versions for a local build.
+      placeholder: |
+        Firefox 145 on Windows 11
+        Python 3.12, Node 22, rustc 1.9x
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, console output or anything else
+      description: Paste text rather than screenshots where you can — it is searchable.
