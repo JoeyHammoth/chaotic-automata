@@ -156,6 +156,7 @@ It writes plots into `Grids/`, `Histograms/`, `Line_Plots/` and `Log_Plots/`.
 | [`docs/methods.md`](docs/methods.md) | Algorithms, verified constants, citations |
 | [`docs/performance.md`](docs/performance.md) | Measured load and frame time on the deployed build |
 | [`docs/limitations.md`](docs/limitations.md) | Honest scope and failure modes |
+| [`docs/troubleshooting.md`](docs/troubleshooting.md) | What a surprising symptom means, and what to do |
 | [`docs/architecture.md`](docs/architecture.md) | Proposed system layout and data flow |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestones and ordering |
 | [`docs/research/design-doc-review.md`](docs/research/design-doc-review.md) | Which claims check out, and what is missing |
