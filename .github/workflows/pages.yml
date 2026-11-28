@@ -2,20 +2,21 @@ name: Pages
 
 # The deliverable is a static site, so this workflow is the only path a visitor ever takes. It builds
 # exactly what CI validates (same wasm build, same npm script) and publishes it under the project
-# sub-path, so the measured page and the tested page are the same artefact.
+# sub-path, so the measured page and the tested page are the same artefact. It also runs the build
+# on pull requests, where the deploy job is skipped: a dependency bump then cannot pass the site
+# job and still break the Pages build, because the Pages build itself is one of the checks.
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -57,6 +58,10 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      pages: write
+      id-token: write
     runs-on: ubuntu-latest
     environment:
       name: github-pages
