@@ -19,6 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The citation check compares CITATION.cff with the newest release tag, which a shallow
+          # clone does not otherwise fetch.
+          fetch-tags: true
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -31,6 +35,8 @@ jobs:
         run: ruff check .
       - name: Check relative links in the Markdown
         run: python scripts/check_doc_links.py
+      - name: Check CITATION.cff against the newest release tag
+        run: python scripts/check_citation.py
       - name: Test
         run: pytest -m "not differential and not sweep"
 
