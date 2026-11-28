@@ -15,10 +15,10 @@ the [Inspector](https://joeyhammoth.github.io/chaotic-automata/inspector.html), 
 [Verifier](https://joeyhammoth.github.io/chaotic-automata/verifier.html) and the
 [HashLife zoom](https://joeyhammoth.github.io/chaotic-automata/hashlife.html).
 
-![The Inspector on rule 18: raw spacetime, the domain residue, local statistical complexity and a twin replica](docs/assets/inspector.png)
+![The atlas, colouring all 262,144 Life-like rules by behaviour class, with undecided rules hatched](docs/assets/atlas.png)
 
-*The deployed Inspector on rule 18 — one of the committed panels under
-[`products/inspector/`](products/inspector/).*
+*The deployed atlas: 512 × 512 rules, coloured by behaviour class, with hatching for the 75.8% that
+are `undecided` at these budgets. The status line under the map carries the view's reproduce state.*
 
 Every pixel of the atlas is a different cellular automaton, coloured by what it *does* (frozen,
 periodic, chaotic, capable of computation), with visible "coastlines" where behaviour changes
