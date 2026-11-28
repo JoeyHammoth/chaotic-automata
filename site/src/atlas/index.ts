@@ -8,6 +8,7 @@ export {
   screenToChart,
   zoomAt,
   type Camera,
+  type Frame,
 } from './lib/camera';
 export { createAtlasRenderer, type AtlasRenderer, type AtlasView } from './lib/render';
 export {

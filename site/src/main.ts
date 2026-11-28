@@ -14,6 +14,7 @@ import {
   zoomAt,
   type AtlasManifest,
   type Camera,
+  type Frame,
   type LegendItem,
 } from './atlas';
 import { createEngine, parseRule, type Engine } from './engine';
@@ -86,7 +87,15 @@ async function start(view: View): Promise<void> {
   layerSelect.value = known.has(view.metric) ? view.metric : 'class';
   disagreementInput.checked = view.disagreement;
 
-  let camera: Camera = clampCamera(view.camera, chart.width, chart.height);
+  /** The canvas in camera pixels and the chart in cells: what the clamps need to know. */
+  const frame = (): Frame => ({
+    width: mapCanvas.width,
+    height: mapCanvas.height,
+    chartWidth: chart.width,
+    chartHeight: chart.height,
+  });
+
+  let camera: Camera = clampCamera(view.camera, frame());
   // True while the map is showing the whole chart at the current frame size; a resize then re-fits
   // instead of leaving the map short of the frame it was fitted to.
   let fitted = !zoomPinned;
@@ -240,13 +249,13 @@ async function start(view: View): Promise<void> {
 
   function move(next: Camera): void {
     fitted = false;
-    camera = clampCamera(next, chart.width, chart.height);
+    camera = clampCamera(next, frame());
     draw();
     syncUrl();
   }
 
   function resetView(): void {
-    camera = clampCamera(fitCamera(), chart.width, chart.height);
+    camera = clampCamera(fitCamera(), frame());
     fitted = true;
     draw();
     syncUrl();
@@ -255,7 +264,7 @@ async function start(view: View): Promise<void> {
   function zoom(factor: number): void {
     const px = mapCanvas.width / 2;
     const py = mapCanvas.height / 2;
-    move(zoomAt(camera, factor, px, py, chart.width, chart.height));
+    move(zoomAt(camera, factor, px, py, frame()));
   }
 
   required<HTMLButtonElement>('#zoom-in').addEventListener('click', () => zoom(1.5));
@@ -289,7 +298,7 @@ async function start(view: View): Promise<void> {
       const scale = mapCanvas.width / rect.width;
       const px = (event.clientX - rect.left) * scale;
       const py = (event.clientY - rect.top) * scale;
-      move(zoomAt(camera, event.deltaY < 0 ? 1.2 : 1 / 1.2, px, py, chart.width, chart.height));
+      move(zoomAt(camera, event.deltaY < 0 ? 1.2 : 1 / 1.2, px, py, frame()));
     },
     { passive: false },
   );
@@ -310,7 +319,7 @@ async function start(view: View): Promise<void> {
     if (Math.hypot(dx, dy) >= 3 * scale) dragging.moved = true;
     dragging.x = event.clientX;
     dragging.y = event.clientY;
-    move(panBy(camera, dx, dy, chart.width, chart.height));
+    move(panBy(camera, dx, dy, frame()));
   });
   mapCanvas.addEventListener('pointerup', (event) => {
     if (dragging && !dragging.moved) runRuleAt(event);
@@ -341,10 +350,10 @@ async function start(view: View): Promise<void> {
   mapCanvas.addEventListener('keydown', (event) => {
     const step = 40;
     const keys: Record<string, () => void> = {
-      ArrowLeft: () => move(panBy(camera, step, 0, chart.width, chart.height)),
-      ArrowRight: () => move(panBy(camera, -step, 0, chart.width, chart.height)),
-      ArrowUp: () => move(panBy(camera, 0, step, chart.width, chart.height)),
-      ArrowDown: () => move(panBy(camera, 0, -step, chart.width, chart.height)),
+      ArrowLeft: () => move(panBy(camera, step, 0, frame())),
+      ArrowRight: () => move(panBy(camera, -step, 0, frame())),
+      ArrowUp: () => move(panBy(camera, 0, step, frame())),
+      ArrowDown: () => move(panBy(camera, 0, -step, frame())),
       '+': () => zoom(1.5),
       '=': () => zoom(1.5),
       '-': () => zoom(1 / 1.5),
@@ -460,7 +469,7 @@ async function start(view: View): Promise<void> {
   }
 
   sizeCanvas();
-  if (fitted) camera = clampCamera(fitCamera(), chart.width, chart.height);
+  if (fitted) camera = clampCamera(fitCamera(), frame());
   await loadOverlay();
   draw();
   updateLegend();

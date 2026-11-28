@@ -152,13 +152,14 @@ test('clicking the map runs that rule and updates the URL', async ({ page }) => 
 });
 
 test('the URL restores the camera, layer and rule exactly', async ({ page }) => {
-  await page.goto('/?rule=B36/S23&seed=7&metric=compression&x=100&y=200&z=2&dis=1');
+  // z=8 leaves chart to pan to in the default viewport; at z=2 the whole chart already fits.
+  await page.goto('/?rule=B36/S23&seed=7&metric=compression&x=100&y=200&z=8&dis=1');
   await settle(page);
 
   await expect(page.locator('#layer')).toHaveValue('compression');
   await expect(page.getByTestId('status')).toContainText('disagreement');
   await expect(page.getByTestId('status')).toContainText('x 100');
-  expect(await page.evaluate(() => document.body.dataset.zoom)).toBe('2');
+  expect(await page.evaluate(() => document.body.dataset.zoom)).toBe('8');
   await expect(page.locator('#disagreement')).toBeChecked();
   await expect(page.locator('#rule-heading')).toHaveText('Run a rule');
 });
@@ -211,7 +212,7 @@ test.describe('on a phone', () => {
 });
 
 test('the keyboard pans and zooms the map', async ({ page }) => {
-  await page.goto('/?x=100&y=100&z=2');
+  await page.goto('/?x=100&y=100&z=8');
   await settle(page);
 
   await page.locator('#atlas').focus();
@@ -220,7 +221,7 @@ test('the keyboard pans and zooms the map', async ({ page }) => {
   expect(Number(panned)).toBeGreaterThan(100);
 
   await page.keyboard.press('+');
-  expect(Number(new URL(page.url()).searchParams.get('z'))).toBeGreaterThan(2);
+  expect(Number(new URL(page.url()).searchParams.get('z'))).toBeGreaterThan(8);
 });
 
 test('a figure can be exported as a PNG with its reproduce link', async ({ page }) => {
