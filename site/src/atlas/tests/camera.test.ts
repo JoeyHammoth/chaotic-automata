@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   clampCamera,
   chartToScreen,
+  fitZoom,
   MAX_ZOOM,
   MIN_ZOOM,
   panBy,
@@ -40,6 +41,21 @@ describe('camera', () => {
     const panned = panBy({ x: 100, y: 100, zoom: 2 }, 20, 0, W, H);
     expect(panned.x).toBeCloseTo(90);
     expect(panned.y).toBeCloseTo(100);
+  });
+
+  it('fits the chart to the frame on its short side', () => {
+    // A square frame shows every cell: one viewport pixel per cell at this size.
+    expect(fitZoom(512, 512, W, H)).toBe(1);
+    expect(fitZoom(640, 640, W, H)).toBe(1.25);
+    // A wide frame is limited by its height, which is why the map frame is square.
+    expect(fitZoom(1120, 640, W, H)).toBe(1.25);
+    // A phone frame is narrower than the chart, so every cell is smaller than a pixel.
+    expect(fitZoom(350, 590, W, H)).toBeCloseTo(350 / 512);
+  });
+
+  it('keeps a fitted camera inside the zoom limits', () => {
+    expect(fitZoom(64, 64, W, H)).toBe(MIN_ZOOM);
+    expect(fitZoom(60_000, 60_000, W, H)).toBe(MAX_ZOOM);
   });
 
   it('never pans past the chart edge', () => {

@@ -4,6 +4,7 @@ import {
   createAtlasRenderer,
   cssColour,
   disagreementLegend,
+  fitZoom,
   hatchCss,
   loadManifest,
   panBy,
@@ -44,6 +45,9 @@ const epsInput = required<HTMLInputElement>('#eps');
 const epsValue = required<HTMLOutputElement>('#eps-value');
 const noiseNote = required<HTMLElement>('#noise-note');
 
+// A URL that names a zoom is a figure someone wants to see again; one that does not gets the map
+// fitted to whatever frame the browser gave it.
+const zoomPinned = new URL(location.href).searchParams.has('z');
 const result = readView(new URL(location.href));
 if (!result.ok) {
   showError(result.message);
@@ -83,6 +87,9 @@ async function start(view: View): Promise<void> {
   disagreementInput.checked = view.disagreement;
 
   let camera: Camera = clampCamera(view.camera, chart.width, chart.height);
+  // True while the map is showing the whole chart at the current frame size; a resize then re-fits
+  // instead of leaving the map short of the frame it was fitted to.
+  let fitted = !zoomPinned;
   // The renderer keeps this object by reference: mutating it is what makes a layer switch repaint.
   const atlasView = {
     layer: layerSelect.value,
@@ -183,12 +190,15 @@ async function start(view: View): Promise<void> {
   }
 
   function updateLabels(): void {
+    // The camera works in canvas pixels, the labels are laid out in CSS pixels; on a high-density
+    // display those differ, and a label placed with the camera's own units lands in the wrong place.
+    const density = mapCanvas.width / mapCanvas.clientWidth;
     labelsBox.replaceChildren(
       ...manifest.space.landmarks.map((landmark) => {
         const item = document.createElement('li');
         item.textContent = `${landmark.name} · ${landmark.rule}`;
-        const sx = (landmark.birth_index - camera.x) * camera.zoom;
-        const sy = (landmark.survival_index - camera.y) * camera.zoom;
+        const sx = ((landmark.birth_index - camera.x) * camera.zoom) / density;
+        const sy = ((landmark.survival_index - camera.y) * camera.zoom) / density;
         item.style.transform = `translate(${sx}px, ${sy}px)`;
         item.hidden = sx < -40 || sy < -20 || sx > mapCanvas.clientWidth || sy > mapCanvas.clientHeight;
         return item;
@@ -224,8 +234,20 @@ async function start(view: View): Promise<void> {
     if (next.href !== location.href) history.replaceState(null, '', next);
   }
 
+  function fitCamera(): Camera {
+    return { x: 0, y: 0, zoom: fitZoom(mapCanvas.width, mapCanvas.height, chart.width, chart.height) };
+  }
+
   function move(next: Camera): void {
+    fitted = false;
     camera = clampCamera(next, chart.width, chart.height);
+    draw();
+    syncUrl();
+  }
+
+  function resetView(): void {
+    camera = clampCamera(fitCamera(), chart.width, chart.height);
+    fitted = true;
     draw();
     syncUrl();
   }
@@ -238,9 +260,7 @@ async function start(view: View): Promise<void> {
 
   required<HTMLButtonElement>('#zoom-in').addEventListener('click', () => zoom(1.5));
   required<HTMLButtonElement>('#zoom-out').addEventListener('click', () => zoom(1 / 1.5));
-  required<HTMLButtonElement>('#zoom-reset').addEventListener('click', () =>
-    move({ x: 0, y: 0, zoom: 1 }),
-  );
+  required<HTMLButtonElement>('#zoom-reset').addEventListener('click', () => resetView());
 
   layerSelect.addEventListener('change', () => {
     atlasView.layer = layerSelect.value;
@@ -328,7 +348,7 @@ async function start(view: View): Promise<void> {
       '+': () => zoom(1.5),
       '=': () => zoom(1.5),
       '-': () => zoom(1 / 1.5),
-      '0': () => move({ x: 0, y: 0, zoom: 1 }),
+      '0': () => resetView(),
     };
     const action = keys[event.key];
     if (action) {
@@ -440,6 +460,7 @@ async function start(view: View): Promise<void> {
   }
 
   sizeCanvas();
+  if (fitted) camera = clampCamera(fitCamera(), chart.width, chart.height);
   await loadOverlay();
   draw();
   updateLegend();
@@ -447,6 +468,7 @@ async function start(view: View): Promise<void> {
   setRuleStatus('click the map to run a rule', view.canonical);
   window.addEventListener('resize', () => {
     sizeCanvas();
-    draw();
+    if (fitted) resetView();
+    else draw();
   });
 }

@@ -171,11 +171,14 @@ test.describe('on a phone', () => {
     await settle(page);
     await page.locator('#atlas').scrollIntoViewIfNeeded();
 
-    // At 1× the whole 512×512 chart is visible, so the camera is clamped: a drag cannot move it.
-    // Zoom the way the page offers on a phone — the buttons — then drag by touch.
+    // The map opens fitted to the frame, so the whole chart is visible and the camera is clamped at
+    // its edges: a drag cannot move it. Zoom the way the page offers on a phone — the buttons — then
+    // drag by touch.
+    const fitted = Number(await page.evaluate(() => document.body.dataset.zoom));
     await page.click('#zoom-in');
     await page.click('#zoom-in');
-    expect(Number(await page.evaluate(() => document.body.dataset.zoom))).toBeGreaterThan(2);
+    const zoomed = Number(await page.evaluate(() => document.body.dataset.zoom));
+    expect(zoomed).toBeGreaterThan(fitted * 2);
 
     const box = await page.locator('#atlas').boundingBox();
     if (!box) throw new Error('the map has no box');

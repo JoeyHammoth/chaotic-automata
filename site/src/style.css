@@ -288,8 +288,15 @@ select:hover {
   gap: 0.3rem;
 }
 
+/*
+ * The map frame is square, because the chart is: the camera starts fitted to it, so a square frame
+ * is filled exactly and a wide one would leave the right-hand side as background. It is capped by
+ * height so the hero still fits above the fold on a short window, and centred when the cap binds.
+ */
 .map {
   position: relative;
+  width: min(100%, 640px, 70vh);
+  margin-inline: auto;
   background: #05070a;
   border-radius: 6px;
   overflow: hidden;
@@ -299,7 +306,8 @@ select:hover {
 #atlas {
   display: block;
   width: 100%;
-  height: min(70vh, 640px);
+  aspect-ratio: 1 / 1;
+  height: auto;
   cursor: crosshair;
   image-rendering: pixelated;
 }

@@ -1,6 +1,7 @@
 export { CHART_SIZE, indexOf, maskAt, ruleAt } from './lib/chart';
 export {
   clampCamera,
+  fitZoom,
   MAX_ZOOM,
   MIN_ZOOM,
   panBy,
