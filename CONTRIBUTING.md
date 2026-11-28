@@ -1,5 +1,19 @@
 # Contributing
 
+## Ways to contribute
+
+- Pick up a [`good first issue`](https://github.com/JoeyHammoth/chaotic-automata/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
+  or [`help wanted`](https://github.com/JoeyHammoth/chaotic-automata/issues?q=is%3Aopen+label%3A%22help+wanted%22)
+  issue. Each one states the expected outcome, where the code lives, and how to check the result.
+- Report a bug through the issue form, with the page URL or the failing command.
+- Fix a doc, a comment or an error message that cost you time. If it cost you time, it will cost
+  someone else time.
+- Check a cited constant against its primary source (`kind:research` issues). A number without a
+  source is a placeholder, and finding that out is a real contribution.
+
+There is no CLA: contributions are MIT, like the project. [`SUPPORT.md`](SUPPORT.md) says where a
+question, a bug and a vulnerability each belong.
+
 ## Workflow
 
 1. **Every change starts from an issue.** If the work is not tracked, open one first: what to build,
@@ -22,6 +36,35 @@
 - [ ] Any new constant, seed or metric is documented where a reader will look
 - [ ] Reproduce information (rule, seed, version) is emitted by anything that produces a figure
 - [ ] `docs/` updated when behaviour or scope changes
+
+## Run the checks
+
+CI runs each toolchain in its own job. Run the one your change touches — or all of them, for a change
+that crosses the seams.
+
+```bash
+# Python pipeline
+pip install -e ".[dev]"
+ruff check .
+pytest -q
+python scripts/check_doc_links.py   # relative links in the tracked Markdown
+
+# One file, or one test, while iterating
+pytest tests/test_inspector.py -q
+pytest tests/test_inspector.py -q -k "carrying_the_tiling_frame"
+
+# Rust engines
+cargo test --workspace
+
+# Site
+cd site
+npm ci
+npm run typecheck && npm test
+npm run build
+```
+
+The differential and sweep tests need a release build of their binary; the commands are at the end of
+this file, and they are the only checks with a prerequisite beyond the toolchains above.
 
 ## Code of conduct and security
 
@@ -70,3 +113,11 @@ CA_DIFF_BIN=target/release/ca-diff CA_DIFF_LATTICE=128 CA_DIFF_STEPS=40 pytest -
 The harness compares whole grids byte for byte and reports the first divergent cell, covers `B0` and
 all-survive rules as well as Life, and asserts that a deliberately mutated engine fails it. CI runs the
 fast profile in its own job so a Python-only change never waits on a Rust build.
+
+## What to expect
+
+This is a single-maintainer project. Issues and pull requests are answered on a best-effort basis,
+with no service-level promise; if a thread has gone quiet, a polite ping is welcome. Every triaged
+issue carries one `area:` label, one `kind:` label and one `priority:` label, so you can see where it
+sits before you start. A pull request that states its acceptance criteria and shows the evidence for
+each gets reviewed fastest.

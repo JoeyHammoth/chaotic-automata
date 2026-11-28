@@ -29,6 +29,8 @@ jobs:
           pip install -e ".[dev]"
       - name: Lint
         run: ruff check .
+      - name: Check relative links in the Markdown
+        run: python scripts/check_doc_links.py
       - name: Test
         run: pytest -m "not differential and not sweep"
 

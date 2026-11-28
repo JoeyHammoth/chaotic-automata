@@ -1,0 +1,52 @@
+name: Feature request
+description: A change in behaviour, a new instrument, or a documentation gap.
+title: "feat: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before writing: `docs/ROADMAP.md` lists what is scheduled and what is an explicit cut line, and
+        `docs/limitations.md` records what the project deliberately does not claim. A request that
+        crosses a cut line is not refused, but it needs a reason to move the line.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: The situation you are in, not the solution you have in mind. Who is it for?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      description: The smallest version that would be useful. A sketch or a link to a reference is welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: Which part of the project?
+      options:
+        - Atlas (M1) — the rule-space map
+        - Inspector (M2) — domains, particles, local causal states
+        - HashLife (M3) — the quadtree zoom
+        - Stress Lab (M4) — noise, Toom, directed percolation
+        - Verifier (M5b) — Busy Beaver certificates
+        - Heritage (M7) — the sandpile lab
+        - Platform — engines, CI, deployment, tooling
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including "do nothing" — say why it is not enough.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Anything that would make this unsafe or out of scope
+      description: >-
+        For example: a claim that would need a primary source, a number that would have to be measured
+        rather than guessed, or a dependency the project has ruled out.

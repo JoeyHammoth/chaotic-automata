@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/JoeyHammoth/chaotic-automata/security/advisories/new
+    about: Private reporting only — please do not open a public issue for a vulnerability.
+  - name: Read the methods and limitations first
+    url: https://github.com/JoeyHammoth/chaotic-automata/blob/main/docs/limitations.md
+    about: What the project does and does not claim, before filing a result that looks wrong.
