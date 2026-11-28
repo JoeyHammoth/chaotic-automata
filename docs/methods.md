@@ -157,8 +157,13 @@ Scope: 1D binary CA of radius 1–2. 2D reconstruction is explicitly out of scop
   Hanson & Crutchfield, *Physica D* **103**, 169 (1997); Cenek, dissertation (2011).
 - Rule 110: the ether is `00010011011111`, 14 cells wide, and returns every 7 steps. Both are
   asserted against the ring of 14 in `tests/test_rule110.py`, and a random row reaches the ether
-  inside the recorded window. The glider periods in Cook's Figure 5 are **not** reproduced here and
-  must not be quoted as measured. Source: Cook, *Complex Systems* **15** (2004) 1–40, §3.1.
+  inside the recorded window. Cook's Figure 5 periods are reproduced for the six common primitive
+  gliders: A `(3, 2)`, B `(4, -2)`, C `(7, 0)`, D `(10, 2)`, E `(15, -4)` and F `(36, -4)` as
+  signed `(time, displacement)` pairs, measured from a 210-cell, 480-step run (seed 11) and checked
+  to be minimal. The table prints displacements as magnitudes; the signed value follows from its
+  `(A, B)` column, whose units are `(3, 2)` and `(4, -2)`. B-bar is three B units and E-bar two E
+  units, so those rows are not independent tests. G and H are too rare to settle in these runs and
+  are not claimed. Source: Cook, *Complex Systems* **15** (2004) 1–40, §3.1 and Figure 5.
 - Rule 30: labelled "no known domain decomposition". Do not invent one.
 
 ### As implemented
@@ -192,8 +197,12 @@ Hanson & Crutchfield, *Physica D* **103**, 169 (1997); Cenek, dissertation (2011
 demands one phase at every offset of every row asks for something the literature never claimed.
 
 `infer_phase_domain` tiles each row with both phases, minimising violations first and walls second,
-and accepts a window only when no forced cell is broken and the worst row spends at most 1/8 of its
-width on walls. Measured over 249 observed rows (seed 11, 8-row settle):
+and carries each row's phase frame into the next so a kink's wall does not jump between rows. The
+carry is shifted by the phase change the rule itself makes — rule 18's domain flips phase every
+step, so comparing rows directly would spend the criterion on a global flip — and it only chooses
+among tilings with the same violation and wall counts. It accepts a window only when no forced cell
+is broken and the worst row spends at most 1/8 of its width on walls. Measured over 249 observed
+rows (seed 11, 8-row settle):
 
 | Rule | Walls/row at 128 / 256 | Worst row | Violations | Read as |
 |---|---|---|---|---|
@@ -236,12 +245,19 @@ detectors count: a periodic domain removes its fixed cells, a region domain leav
 and any broken forced cell, and `filtered_field` is the one function either half calls — a page that
 filtered differently from the headless report would be two answers to the same question.
 
-The tracks a region domain leaves are kinks, and most of them are short-lived. Over the 249 observed
-rows at 256 cells, seed 11, rule 18 gives 79 to 294 tracks depending on whether the mask marks one
-side of each wall or both (the page draws both, so the panel's figure is the larger one); 66 of them
-measure a period and two last eight rows or more. That is a field of tracks, not a particle claim:
-the claim is the null-calibrated `particle_count`, and rule 18 has to earn it against shuffled
-time. Spatial periods and the collision table are #50.
+The tracks a region domain leaves are kinks. Tiling every row independently gives 294 tracks over
+the 249 observed rows at 256 cells, seed 11, but only 40% of a row's walls land within one cell of
+the row above: the optimiser picks a different frame above and below a kink, so the mask jumps even
+where the pattern does not. Carrying the frame raises that continuity to 99.5% without changing the
+wall count (6.12 per row, worst 7.8%), and the residue becomes 28 tracks, 18 of which last at least
+eight rows and several span the whole window. The kinks are persistent objects, not tiling noise.
+
+Most of them are not periodic: the walls perform a random walk, so only 4 tracks measure a period
+and 2 of those are long-lived. The claim is still the null-calibrated `particle_count`, not a track
+count, and rule 18 has to earn it against shuffled time. At the panel's 128 x 96 window the same
+filter leaves 12 tracks, 7 of them long-lived; the one-side mask leaves 25 at 256 cells against the
+page's 28, so the two readings no longer differ by an order of magnitude. Spatial periods and the
+collision table are #50.
 
 **The Rule 90 oracle fixes its own geometry.** One cell on a 65-cell torus for 32 steps: cell `d` at
 time `t` is `C(t, (t+d)/2) mod 2` when `t+d` is even, and zero otherwise. A random row would test
@@ -254,6 +270,7 @@ times get state `-1` and are counted as `undecided`, never assigned to a state.
 **The heatmap marks particles, and the measurement says by how much.** `state_separation` compares
 mean local complexity on the kink mask — each tiling wall and its neighbours — with the mean
 everywhere else, then compares that ratio with the same mask rotated against the complexity field.
+This measurement tiles each row on its own; the residue above uses the carried frame.
 The rotation keeps each row's wall count and spacing and breaks only the alignment, and `separates`
 is `ratio > null_ratio`: a ratio the best rotation matches is not a separation. Over 249 observed rows
 at 256 cells, seed 11: rule 18 gives 2.14 bits on the mask against 1.62 elsewhere (ratio 1.32, best

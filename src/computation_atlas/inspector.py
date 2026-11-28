@@ -9,10 +9,10 @@ What this module does, and what it does not:
   That is a regular-language domain of the shape ``(0 Sigma)*`` when the pattern is
   ``(0, None)`` for period 2. It is a periodic-domain finder with an explicit observation window,
   not a full CSSR implementation, and it reports ``None`` rather than a best guess.
-* :func:`particles` finds connected components of a filtered field and measures their lifetime and
+* :func:`particles` chains per-row blobs of a filtered field and measures their lifetime and
   drift. It reports velocity and lifetime; spatial period and the collision table are the next
-  ticket, so nothing here invents them. Components of an *unfiltered* field are the chaotic sea,
-  not particles, so a report only claims tracks when it also has a domain to filter with.
+  ticket, so nothing here invents them. Blobs of an *unfiltered* field are the chaotic sea, not
+  particles, so a report only claims tracks when it also has a domain to filter with.
 * :func:`local_causal_states` clusters each cell's bounded past lightcone by the distribution it
   induces over the next row, using a log-likelihood-ratio test, and reports how surprising each
   state is. Cells with too little evidence get state ``-1``: undecided, not a state.
@@ -201,17 +201,17 @@ def filtered_field(
 
     A periodic domain is removed cell by cell. A region domain forces nothing outright — its walls
     are where the pattern stops being ``(0 Sigma)*`` — so the residue is the wall columns plus any
-    cell that breaks a forced zero, which is what a reader sees as a particle. Both halves use this
-    one function: a page that filtered differently from the headless report would be two answers to
-    the same question.
+    cell that breaks a forced zero, which is what a reader sees as a particle. The walls come from
+    :func:`domain_tilings`, whose carried frame keeps a kink's wall in the same place from row to
+    row. Both halves use this one function: a page that filtered differently from the headless
+    report would be two answers to the same question.
     """
     if domain is not None:
         return filter_domain(rows, domain)
     if region is None:
         return None
     residue = []
-    for row in rows:
-        tiled = domain_tiling(row, period=region.period)
+    for row, tiled in zip(rows, domain_tilings(rows, period=region.period), strict=True):
         walls = set(tiled.walls)
         width = len(row)
         marks = bytearray(width)
@@ -271,37 +271,71 @@ class DomainTiling:
         return f"({', '.join(symbols)})*"
 
 
-def _best_tiling(row: bytes, start: int, period: int) -> tuple[int, int, list[int]]:
-    """``(violations, walls, phases)`` for the best tiling that begins in phase ``start``."""
+def _best_tiling(
+    row: bytes,
+    start: int,
+    period: int,
+    previous: tuple[int, ...] | None = None,
+) -> tuple[int, int, int, list[int]]:
+    """``(violations, walls, disagreement, phases)`` for the best tiling from ``start``.
+
+    ``disagreement`` counts cells whose phase differs from ``previous``, the tiling of the row
+    above. It is the third criterion: a row still minimises violations first and walls second,
+    so continuity only decides between tilings that are otherwise equal.
+    """
     width = len(row)
-    impossible = (1 << 30, 1 << 30, -1)
+    impossible = (1 << 30, 1 << 30, 1 << 30, -1)
     best = [impossible] * period
-    best[start] = (0, 0, -1)
-    history: list[list[tuple[int, int, int]]] = [list(best)]
+    best[start] = (0, 0, 0 if previous is None else int(start != previous[0]), -1)
+    history: list[list[tuple[int, int, int, int]]] = [list(best)]
     for i in range(1, width):
         current = [impossible] * period
-        for previous in range(period):
-            violations, walls, _ = best[previous]
+        for prior in range(period):
+            violations, walls, disagreement, _ = best[prior]
             if violations >= 1 << 30:
                 continue
             for phase in range(period):
                 broken = 1 if (i % period == phase and row[i] != 0) else 0
-                candidate = (violations + broken, walls + int(phase != previous), previous)
-                if candidate[:2] < current[phase][:2]:
+                extra = 0 if previous is None else int(phase != previous[i])
+                candidate = (
+                    violations + broken,
+                    walls + int(phase != prior),
+                    disagreement + extra,
+                    prior,
+                )
+                if candidate[:3] < current[phase][:3]:
                     current[phase] = candidate
         best = current
         history.append(current)
-    end = min(range(period), key=lambda phase: best[phase][:2])
-    violations, walls = best[end][0], best[end][1]
+    end = min(range(period), key=lambda phase: best[phase][:3])
+    violations, walls, disagreement = best[end][0], best[end][1], best[end][2]
     if end != start:
         walls += 1
     phases = [0] * width
     phase = end
     for i in range(width - 1, 0, -1):
         phases[i] = phase
-        phase = history[i][phase][2]
+        phase = history[i][phase][3]
     phases[0] = start
-    return violations, walls, phases
+    return violations, walls, disagreement, phases
+
+
+def _tiling(
+    row: bytes, period: int, previous: tuple[int, ...] | None = None
+) -> DomainTiling:
+    if not row:
+        raise ValueError("row is empty")
+    if period < 2:
+        raise ValueError("period must be at least 2")
+    violations, _, _, phases = min(
+        (_best_tiling(row, start, period, previous) for start in range(period)),
+        key=lambda result: result[:3],
+    )
+    width = len(row)
+    walls = tuple(i for i in range(width) if phases[i] != phases[(i - 1) % width])
+    return DomainTiling(
+        phases=tuple(phases), walls=walls, violations=violations, width=width, period=period
+    )
 
 
 def domain_tiling(row: bytes, *, period: int = 2) -> DomainTiling:
@@ -311,19 +345,56 @@ def domain_tiling(row: bytes, *, period: int = 2) -> DomainTiling:
     which either all even-numbered or all odd-numbered sites are zero, separated by kinks. A
     single phase over the whole row is the special case with zero walls.
     """
-    if not row:
-        raise ValueError("row is empty")
+    return _tiling(row, period)
+
+
+def _phase_shift(row: bytes, previous: tuple[int, ...], period: int) -> int:
+    """The global phase shift that best explains this row's ones against ``previous``.
+
+    Rule 18's domain flips phase every step, so comparing a row with the row above directly
+    would make every cell disagree and leave the continuity criterion nothing to choose between.
+    The shift is the one that puts the fewest ones on a forced zero; for rule 18 it is 1, for a
+    rule whose domain keeps its phase it is 0.
+    """
+    best = (len(row) + 1, 0)
+    for shift in range(period):
+        mismatches = sum(
+            1
+            for index, cell in enumerate(row)
+            if cell and (previous[index] + shift) % period == index % period
+        )
+        if mismatches < best[0]:
+            best = (mismatches, shift)
+    return best[1]
+
+
+def domain_tilings(
+    rows: tuple[bytes, ...] | list[bytes], *, period: int = 2
+) -> tuple[DomainTiling, ...]:
+    """Tile a window row by row, carrying each row's phase frame into the next.
+
+    Tiling every row independently lets the optimiser pick a different frame above and below a
+    kink, so a wall can jump even where the pattern does not. Carrying the frame makes wall
+    positions a property of the field rather than of the tie-break: each row still minimises
+    violations and walls first, and only then agrees with the row above where it can. The row
+    above is shifted by the phase change the rule itself makes, so a domain that alternates
+    phase every step does not spend the criterion on a global flip.
+    """
+    if not rows:
+        raise ValueError("rows is empty")
     if period < 2:
         raise ValueError("period must be at least 2")
-    violations, _, phases = min(
-        (_best_tiling(row, start, period) for start in range(period)),
-        key=lambda result: (result[0], result[1]),
-    )
-    width = len(row)
-    walls = tuple(i for i in range(width) if phases[i] != phases[(i - 1) % width])
-    return DomainTiling(
-        phases=tuple(phases), walls=walls, violations=violations, width=width, period=period
-    )
+    tilings: list[DomainTiling] = []
+    previous: tuple[int, ...] | None = None
+    for row in rows:
+        reference = None
+        if previous is not None:
+            shift = _phase_shift(row, previous, period)
+            reference = tuple((phase + shift) % period for phase in previous)
+        tiling = _tiling(row, period, reference)
+        tilings.append(tiling)
+        previous = tiling.phases
+    return tuple(tilings)
 
 
 @dataclass(frozen=True)
@@ -357,6 +428,9 @@ def infer_phase_domain(
 ) -> PhaseDomain | None:
     """Recover a two-phase ``(0 Sigma)*`` domain, or ``None`` when the rows do not tile cleanly.
 
+    Rows are tiled in order with :func:`domain_tilings`, so each row carries the previous row's
+    phase frame. The wall count is the same as an independent tiling, but the walls line up.
+
     Zero violations is not enough on its own: a tiling may wall off everything, which is exactly
     what rule 30 does at a third of the row. The wall budget is what separates a domain with
     particles in it from no domain at all. Measured at 256 cells, rules 18, 36 and 164 need
@@ -367,7 +441,7 @@ def infer_phase_domain(
         raise ValueError("rows is empty")
     if not 0 < max_wall_fraction < 1:
         raise ValueError("max_wall_fraction must be between 0 and 1")
-    tilings = [domain_tiling(row, period=period) for row in rows]
+    tilings = domain_tilings(rows, period=period)
     if any(tiling.violations for tiling in tilings):
         return None
     walls = tuple(len(tiling.walls) for tiling in tilings)
@@ -556,7 +630,7 @@ def spatial_inference(
     violations: list[float] = []
     for index in range(seeds):
         rows = spacetime(rule, width, steps, seed + index * 7919)[settle:]
-        tilings = [domain_tiling(row) for row in rows]
+        tilings = domain_tilings(rows)
         walls.append(sum(len(tiling.walls) for tiling in tilings) / len(tilings))
         violations.append(sum(tiling.violations for tiling in tilings) / len(tilings))
         machine = spatial_machine(rows, history=history, alpha=alpha, min_count=min_count)

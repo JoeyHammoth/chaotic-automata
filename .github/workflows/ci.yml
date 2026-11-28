@@ -135,6 +135,11 @@ jobs:
       - name: Smoke test the running page
         run: npm run e2e
         working-directory: site
+      - name: Build the Pages artifact under the project sub-path
+        run: npm run build
+        working-directory: site
+        env:
+          VITE_BASE: /chaotic-automata/
 
   a11y:
     name: Accessibility budget (Lighthouse)

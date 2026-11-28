@@ -18,8 +18,10 @@ from computation_atlas.inspector import (
     chi2_critical,
     claim,
     domain_tiling,
+    domain_tilings,
     domain_violations,
     elementary,
+    filtered_field,
     from_number,
     infer_domain,
     infer_phase_domain,
@@ -133,6 +135,43 @@ def test_rule_18_domain_is_regions_between_walls() -> None:
         "a wall is an index between two cells, not a run of them: the field must not be a copy of "
         "the mask"
     )
+
+
+def test_carrying_the_tiling_frame_makes_rule_18s_kinks_persistent() -> None:
+    """The wall positions, not just their count, are a property of the field.
+
+    Tiling each row on its own leaves the optimiser free to pick a different phase frame above and
+    below a kink, so most walls jump between rows. Carrying the frame keeps them together without
+    adding a wall, and the residue then holds long tracks rather than a gas of one-row fragments.
+    """
+    rows = spacetime(elementary(18), 256, 256, SEED)[8:]
+    width = len(rows[0])
+    independent = [domain_tiling(row) for row in rows]
+    carried = domain_tilings(rows)
+
+    def continuity(tilings: list) -> float:
+        matched = total = 0
+        for before, after in zip(tilings, tilings[1:], strict=False):
+            previous = set(before.walls)
+            for wall in after.walls:
+                total += 1
+                matched += int(any((wall + d) % width in previous for d in (-1, 0, 1)))
+        return matched / total
+
+    assert continuity(carried) > 0.95
+    assert continuity(independent) < 0.5
+    assert [len(tiling.walls) for tiling in carried] == [
+        len(tiling.walls) for tiling in independent
+    ], "carrying the frame chooses among equal-wall tilings; it must not add a wall"
+    assert all(tiling.violations == 0 for tiling in carried)
+
+    region = infer_phase_domain(rows)
+    assert region is not None
+    field = filtered_field(rows, None, region)
+    assert field is not None
+    tracked = track(field)
+    assert len([p for p in tracked.particles if p.lifetime >= 8]) >= 10
+    assert max(p.lifetime for p in tracked.particles) >= 100
 
 
 def test_shuffling_time_destroys_the_detected_domain() -> None:
